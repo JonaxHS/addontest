@@ -1,0 +1,10 @@
+{
+  "name": "aiostreams-debrid-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bridge that converts AIOStreams URLs into info_hash results compatible with DebridStream.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
