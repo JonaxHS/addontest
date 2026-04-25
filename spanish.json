@@ -12,7 +12,7 @@
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
     },
-    "url": "http://localhost:8787/stream/%searchPattern.json"
+    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
   },
   {
     "name": "AIOStreams Bridge",
@@ -27,6 +27,6 @@
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
     },
-    "url": "http://localhost:8787/stream/%searchPattern.json"
+    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
   }
 ]
