@@ -1,0 +1,32 @@
+[
+  {
+    "name": "AIOStreams",
+    "type": "json_imdb",
+    "imdbType": "movie",
+    "itemType": "url",
+    "urlTargetKey": "url",
+    "jsonResultsKey": "streams",
+    "torrentNameTargetKey": "name",
+    "sizeAttr": "behaviorHints.videoSize",
+    "searchPattern": {
+      "movie": "movie/%imdbId",
+      "tv": "series/%imdbId:%season:%episode"
+    },
+    "url": "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream/%searchPattern.json"
+  },
+  {
+    "name": "AIOStreams",
+    "type": "json_imdb",
+    "imdbType": "tv",
+    "itemType": "url",
+    "urlTargetKey": "url",
+    "jsonResultsKey": "streams",
+    "torrentNameTargetKey": "name",
+    "sizeAttr": "behaviorHints.videoSize",
+    "searchPattern": {
+      "movie": "movie/%imdbId",
+      "tv": "series/%imdbId:%season:%episode"
+    },
+    "url": "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream/%searchPattern.json"
+  }
+]
