@@ -5,7 +5,7 @@ const AIO_BASE =
   process.env.AIO_BASE ||
   "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream";
 const PREFER_LANGUAGE_ONLY = process.env.PREFER_LANGUAGE_ONLY !== "false";
-const PREFERRED_LANG_MARKERS = (process.env.PREFERRED_LANG_MARKERS || "latino,castellano,espanol,spanish")
+const PREFERRED_LANG_MARKERS = (process.env.PREFERRED_LANG_MARKERS || "lat,latino,castellano,espanol,spanish")
   .split(",")
   .map((item) => item.trim().toLowerCase())
   .filter(Boolean);
@@ -163,7 +163,13 @@ function normalizeForMatch(text) {
 
 function hasPreferredLanguage(stream) {
   const text = normalizeForMatch(`${stream?.name || ""}\n${stream?.title || ""}\n${stream?.sourceUrl || ""}`);
-  return PREFERRED_LANG_MARKERS.some((marker) => text.includes(marker));
+  const tokens = new Set(text.split(/[^a-z0-9]+/).filter(Boolean));
+
+  return PREFERRED_LANG_MARKERS.some((marker) => {
+    // Short markers like "lat" should match as whole token only.
+    if (marker.length <= 3) return tokens.has(marker);
+    return text.includes(marker);
+  });
 }
 
 function isLikelyPlayable(stream) {
