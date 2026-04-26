@@ -152,7 +152,8 @@ function buildTitle(stream, provider) {
 function isLikelyPlayable(stream) {
   const name = normalizeName(stream, "");
   const sourceUrl = typeof stream?.url === "string" ? stream.url : "";
-  const combined = `${name} ${sourceUrl}`.toLowerCase();
+  const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : "";
+  const combined = `${name} ${filename} ${sourceUrl}`.toLowerCase();
 
   // Reject clearly unsafe/non-video archive payloads.
   const blockedExt = [".exe", ".msi", ".bat", ".cmd", ".rar", ".zip", ".7z", ".iso"];
@@ -160,8 +161,17 @@ function isLikelyPlayable(stream) {
     if (combined.includes(ext)) return false;
   }
 
-  // If a known extension is present, keep only likely video containers.
-  const extMatch = combined.match(/\.([a-z0-9]{2,5})(?:\b|\?|$)/);
+  // Check extension only from filename/path, never from hostname (e.g. .lat).
+  let pathText = `${filename} ${name}`;
+  if (sourceUrl) {
+    try {
+      pathText += ` ${new URL(sourceUrl).pathname}`;
+    } catch {
+      pathText += ` ${sourceUrl}`;
+    }
+  }
+
+  const extMatch = pathText.toLowerCase().match(/\.([a-z0-9]{2,5})(?:\b|\?|$)/);
   if (!extMatch) return true;
 
   const allowedExt = new Set(["mkv", "mp4", "avi", "mov", "m4v", "ts", "wmv", "flv", "webm"]);
