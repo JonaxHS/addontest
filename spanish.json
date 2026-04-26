@@ -7,7 +7,7 @@
     "infoHashTargetKey": "infoHash",
     "jsonResultsKey": "streams",
     "torrentNameTargetKey": "title",
-    "sizeAttr": "size",
+    "sizeAttr": "behaviorHints.videoSize",
     "searchPattern": {
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
