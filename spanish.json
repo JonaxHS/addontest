@@ -6,8 +6,8 @@
     "imdbType": "movie",
     "url": "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiQjdRK0VqbTJ5a1ZaNjM3c0VJbkI3QT09IiwiZSI6Iml6UkhzQVNrSy9Ed2VGSlExUVBWR1ZKejN2L2VXSmtDdDJGcUxUb2M3SEE9IiwidCI6ImEifQ/stream/%searchPattern.json",
     "jsonResultsKey": "streams",
-    "infoHashTargetKey": "description",
-    "infoHashRegExp": "InfoHash:\\s*([a-fA-F0-9]{40})",
+    "infoHashTargetKey": "name",
+    "infoHashRegExp": "([a-fA-F0-9]{40})",
     "torrentNameTargetKey": "name",
     "sizeAttr": "behaviorHints.videoSize",
     "searchPattern": {
