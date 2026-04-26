@@ -13,4 +13,5 @@
       "tv": "series/%imdbId:%season:%episode"
     },
     "url": "https://torrentio.strem.fun/sort=qualitysize|limit=7/stream/%searchPattern.json"
-  }
+    }
+  ]
