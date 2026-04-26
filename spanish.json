@@ -6,7 +6,22 @@
     "imdbType": "movie",
     "jsonResultsKey": "streams",
     "infoHashTargetKey": "infoHash",
-    "torrentNameTargetKey": "name",
+    "torrentNameTargetKey": "title",
+    "sizeAttr": "size",
+    "searchPattern": {
+      "movie": "movie/%imdbId",
+      "tv": "series/%imdbId:%season:%episode"
+    },
+    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
+  },
+  {
+    "name": "Axonim AIO Bridge",
+    "type": "json_imdb",
+    "itemType": "info_hash",
+    "imdbType": "tv",
+    "jsonResultsKey": "streams",
+    "infoHashTargetKey": "infoHash",
+    "torrentNameTargetKey": "title",
     "sizeAttr": "size",
     "searchPattern": {
       "movie": "movie/%imdbId",
