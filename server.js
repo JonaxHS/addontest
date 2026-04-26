@@ -202,8 +202,8 @@ async function handleStream(req, res, pathname) {
     const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
 
     converted.push({
-      name: normalizeName(stream, `AIOStreams ${searchPattern}`),
-      title: buildTitle(stream, provider),
+      name: `${provider}\n${qualityLine}`,
+      title: normalizeName(stream, `AIOStreams ${searchPattern}`),
       infoHash,
       fileIdx,
       behaviorHints: {
