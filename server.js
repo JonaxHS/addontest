@@ -219,6 +219,7 @@ async function handleStream(req, res, pathname) {
     const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : "";
     const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
     const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
+    const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
 
     converted.push({
       name: `${provider}\n${qualityLine}`,
@@ -227,9 +228,10 @@ async function handleStream(req, res, pathname) {
       fileIdx,
       behaviorHints: {
         bingeGroup,
-        filename
+        filename,
+        videoSize
       },
-      size: Number(stream?.behaviorHints?.videoSize || 0),
+      size: videoSize,
       sourceUrl: typeof stream?.url === "string" ? stream.url : ""
     });
   }
