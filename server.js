@@ -194,16 +194,17 @@ async function handleStream(req, res, pathname) {
     if (!infoHash || dedupe.has(infoHash)) continue;
 
     dedupe.add(infoHash);
+    const upstreamLabel = normalizeName(stream, `AIOStreams ${searchPattern}`);
     const provider = parseProvider(stream);
     const qualityLine = parseQualityLine(stream);
-    const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : "";
+    const filename = upstreamLabel;
     const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
     const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
     const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
 
     converted.push({
       name: `${provider}\n${qualityLine}`,
-      title: normalizeName(stream, `AIOStreams ${searchPattern}`),
+      title: upstreamLabel,
       infoHash,
       fileIdx,
       behaviorHints: {
