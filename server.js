@@ -104,6 +104,70 @@ function normalizeName(stream, fallback) {
   return fallback;
 }
 
+function formatSize(bytes) {
+  const value = Number(bytes || 0);
+  if (!Number.isFinite(value) || value <= 0) return "Unknown";
+
+  const gb = value / (1024 ** 3);
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+
+  const mb = value / (1024 ** 2);
+  return `${mb.toFixed(2)} MB`;
+}
+
+function parseProvider(stream) {
+  const text = `${stream?.name || ""}\n${stream?.description || ""}`;
+  const line = text
+    .split("\n")
+    .map((item) => item.trim())
+    .find((item) => item.includes("🍿"));
+
+  if (!line) return "AIOStreams";
+
+  const provider = line.split("🍿").pop()?.trim();
+  if (!provider) return "AIOStreams";
+
+  return provider;
+}
+
+function parseQualityLine(stream) {
+  const firstLine = (stream?.name || "").split("\n")[0]?.trim() || "";
+  const normalized = firstLine.replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
+  return normalized || "Auto";
+}
+
+function buildTitle(stream, provider) {
+  const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename.trim() : "";
+  const descLine = (stream?.description || "")
+    .split("\n")
+    .map((item) => item.trim())
+    .find((item) => item && !item.toLowerCase().startsWith("infohash:"));
+
+  const base = filename || descLine || normalizeName(stream, "AIOStreams Stream");
+  const size = formatSize(stream?.behaviorHints?.videoSize);
+
+  return `${base}\nSize ${size} Source ${provider}`;
+}
+
+function isLikelyPlayable(stream) {
+  const name = normalizeName(stream, "");
+  const sourceUrl = typeof stream?.url === "string" ? stream.url : "";
+  const combined = `${name} ${sourceUrl}`.toLowerCase();
+
+  // Reject clearly unsafe/non-video archive payloads.
+  const blockedExt = [".exe", ".msi", ".bat", ".cmd", ".rar", ".zip", ".7z", ".iso"];
+  for (const ext of blockedExt) {
+    if (combined.includes(ext)) return false;
+  }
+
+  // If a known extension is present, keep only likely video containers.
+  const extMatch = combined.match(/\.([a-z0-9]{2,5})(?:\b|\?|$)/);
+  if (!extMatch) return true;
+
+  const allowedExt = new Set(["mkv", "mp4", "avi", "mov", "m4v", "ts", "wmv", "flv", "webm"]);
+  return allowedExt.has(extMatch[1]);
+}
+
 async function handleStream(req, res, pathname) {
   const searchPattern = pathname.slice("/stream/".length, -".json".length);
   if (!searchPattern) {
@@ -147,11 +211,24 @@ async function handleStream(req, res, pathname) {
   for (const stream of streams) {
     const infoHash = extractInfoHash(stream);
     if (!infoHash || dedupe.has(infoHash)) continue;
+    if (!isLikelyPlayable(stream)) continue;
 
     dedupe.add(infoHash);
+    const provider = parseProvider(stream);
+    const qualityLine = parseQualityLine(stream);
+    const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : "";
+    const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
+    const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
+
     converted.push({
+      name: `${provider}\n${qualityLine}`,
+      title: buildTitle(stream, provider),
       infoHash,
-      name: normalizeName(stream, `AIOStreams ${searchPattern}`),
+      fileIdx,
+      behaviorHints: {
+        bingeGroup,
+        filename
+      },
       size: Number(stream?.behaviorHints?.videoSize || 0),
       sourceUrl: typeof stream?.url === "string" ? stream.url : ""
     });
