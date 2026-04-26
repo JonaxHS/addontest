@@ -4,11 +4,6 @@ const PORT = Number(process.env.PORT || 8787);
 const AIO_BASE =
   process.env.AIO_BASE ||
   "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream";
-const PREFER_LANGUAGE_ONLY = process.env.PREFER_LANGUAGE_ONLY !== "false";
-const PREFERRED_LANG_MARKERS = (process.env.PREFERRED_LANG_MARKERS || "lat,latino,castellano,espanol,spanish")
-  .split(",")
-  .map((item) => item.trim().toLowerCase())
-  .filter(Boolean);
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -154,53 +149,6 @@ function buildTitle(stream, provider) {
   return `${base}\nSize ${size} Source ${provider}`;
 }
 
-function normalizeForMatch(text) {
-  return String(text || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function hasPreferredLanguage(stream) {
-  const text = normalizeForMatch(`${stream?.name || ""}\n${stream?.title || ""}\n${stream?.sourceUrl || ""}`);
-  const tokens = new Set(text.split(/[^a-z0-9]+/).filter(Boolean));
-
-  return PREFERRED_LANG_MARKERS.some((marker) => {
-    // Short markers like "lat" should match as whole token only.
-    if (marker.length <= 3) return tokens.has(marker);
-    return text.includes(marker);
-  });
-}
-
-function isLikelyPlayable(stream) {
-  const name = normalizeName(stream, "");
-  const sourceUrl = typeof stream?.url === "string" ? stream.url : "";
-  const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : "";
-  const combined = `${name} ${filename} ${sourceUrl}`.toLowerCase();
-
-  // Reject clearly unsafe/non-video archive payloads.
-  const blockedExt = [".exe", ".msi", ".bat", ".cmd", ".rar", ".zip", ".7z", ".iso"];
-  for (const ext of blockedExt) {
-    if (combined.includes(ext)) return false;
-  }
-
-  // Check extension only from filename/path, never from hostname (e.g. .lat).
-  let pathText = `${filename} ${name}`;
-  if (sourceUrl) {
-    try {
-      pathText += ` ${new URL(sourceUrl).pathname}`;
-    } catch {
-      pathText += ` ${sourceUrl}`;
-    }
-  }
-
-  const extMatch = pathText.toLowerCase().match(/\.([a-z0-9]{2,5})(?:\b|\?|$)/);
-  if (!extMatch) return true;
-
-  const allowedExt = new Set(["mkv", "mp4", "avi", "mov", "m4v", "ts", "wmv", "flv", "webm"]);
-  return allowedExt.has(extMatch[1]);
-}
-
 async function handleStream(req, res, pathname) {
   const searchPattern = pathname.slice("/stream/".length, -".json".length);
   if (!searchPattern) {
@@ -244,7 +192,6 @@ async function handleStream(req, res, pathname) {
   for (const stream of streams) {
     const infoHash = extractInfoHash(stream);
     if (!infoHash || dedupe.has(infoHash)) continue;
-    if (!isLikelyPlayable(stream)) continue;
 
     dedupe.add(infoHash);
     const provider = parseProvider(stream);
@@ -255,7 +202,7 @@ async function handleStream(req, res, pathname) {
     const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
 
     converted.push({
-      name: `${provider}\n${qualityLine}`,
+      name: normalizeName(stream, `AIOStreams ${searchPattern}`),
       title: buildTitle(stream, provider),
       infoHash,
       fileIdx,
@@ -269,15 +216,7 @@ async function handleStream(req, res, pathname) {
     });
   }
 
-  let output = converted;
-  if (PREFER_LANGUAGE_ONLY && converted.length > 0) {
-    const preferredOnly = converted.filter(hasPreferredLanguage);
-    if (preferredOnly.length > 0) {
-      output = preferredOnly;
-    }
-  }
-
-  sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
+  sendJson(res, 200, { streams: converted, count: converted.length, upstreamUrl });
 }
 
 const server = createServer(async (req, res) => {
