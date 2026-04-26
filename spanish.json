@@ -1,8 +1,24 @@
 [
+  
   {
     "name": "Torrentio",
     "type": "json_imdb",
     "imdbType": "tv",
+    "itemType": "info_hash",
+    "infoHashTargetKey": "infoHash",
+    "jsonResultsKey": "streams",
+    "torrentNameTargetKey": "title",
+    "sizeAttr": "behaviorHints.videoSize",
+    "searchPattern": {
+      "movie": "movie/%imdbId",
+      "tv": "series/%imdbId:%season:%episode"
+    },
+    "url": "https://fotos.axonim.lat/stream/%searchPattern.json"
+  },
+    {
+    "name": "Torrentio",
+    "type": "json_imdb",
+    "imdbType": "movie",
     "itemType": "info_hash",
     "infoHashTargetKey": "infoHash",
     "jsonResultsKey": "streams",
