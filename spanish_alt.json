@@ -1,62 +1,18 @@
 [
   {
-    "name": "AIO Bridge ALT",
+    "name": "Axonim AIO Bridge",
     "type": "json_imdb",
-    "imdbType": "movie",
     "itemType": "info_hash",
-    "infoHashTargetKey": "infoHash",
-    "jsonResultsKey": "streams",
-    "torrentNameTargetKey": "name",
-    "sizeAttr": "size",
-    "searchPattern": {
-      "movie": "movie/%imdbId",
-      "tv": "series/%imdbId:%season:%episode"
-    },
-    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
-  },
-  {
-    "name": "AIO Bridge ALT",
-    "type": "json_imdb",
-    "imdbType": "tv",
-    "itemType": "info_hash",
-    "infoHashTargetKey": "infoHash",
-    "jsonResultsKey": "streams",
-    "torrentNameTargetKey": "name",
-    "sizeAttr": "size",
-    "searchPattern": {
-      "movie": "movie/%imdbId",
-      "tv": "series/%imdbId:%season:%episode"
-    },
-    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
-  },
-  {
-    "name": "AIO Direct URL DEBUG",
-    "type": "json_imdb",
     "imdbType": "movie",
-    "itemType": "url",
-    "urlTargetKey": "url",
+    "url": "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiQjdRK0VqbTJ5a1ZaNjM3c0VJbkI3QT09IiwiZSI6Iml6UkhzQVNrSy9Ed2VGSlExUVBWR1ZKejN2L2VXSmtDdDJGcUxUb2M3SEE9IiwidCI6ImEifQ/stream/%searchPattern.json",
     "jsonResultsKey": "streams",
+    "infoHashTargetKey": "description",
+    "infoHashRegExp": "InfoHash:\\s*([a-fA-F0-9]{40})",
     "torrentNameTargetKey": "name",
     "sizeAttr": "behaviorHints.videoSize",
     "searchPattern": {
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
-    },
-    "url": "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream/%searchPattern.json"
-  },
-  {
-    "name": "AIO Direct URL DEBUG",
-    "type": "json_imdb",
-    "imdbType": "tv",
-    "itemType": "url",
-    "urlTargetKey": "url",
-    "jsonResultsKey": "streams",
-    "torrentNameTargetKey": "name",
-    "sizeAttr": "behaviorHints.videoSize",
-    "searchPattern": {
-      "movie": "movie/%imdbId",
-      "tv": "series/%imdbId:%season:%episode"
-    },
-    "url": "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream/%searchPattern.json"
+    }
   }
 ]
