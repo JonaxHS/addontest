@@ -12,6 +12,6 @@
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
     },
-    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
+    "url": "https://fotos.axonim.lat/stream/%searchPattern.json"
   }
 ]
