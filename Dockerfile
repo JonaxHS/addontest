@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package.json ./
 COPY server.js ./
+COPY config-ui.html ./
 
 ENV NODE_ENV=production
 ENV PORT=8787
