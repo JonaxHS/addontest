@@ -420,6 +420,35 @@
       URL.revokeObjectURL(url);
     }
 
+    function extractInfoHashFromText(text) {
+      const patterns = [
+        /btih:([A-Fa-f0-9]{40}|[A-Z2-7]{32})/i,
+        /\/resolve\/[^/]+\/[^/]+\/([A-Fa-f0-9]{40})(?:\/|$)/i,
+        /\/_\/strem\/[^/]+\/[^/]+\/([A-Fa-f0-9]{40})(?:\/|$)/i,
+        /(?:^|[^A-Fa-f0-9])([A-Fa-f0-9]{40})(?:$|[^A-Fa-f0-9])/i,
+        /infohash:\s*([A-Fa-f0-9]{40}|[A-Z2-7]{32})/i
+      ];
+
+      for (const pattern of patterns) {
+        const match = String(text || '').match(pattern);
+        if (match) return match[1];
+      }
+      return null;
+    }
+
+    function findInfoHashInStream(stream) {
+      const url = typeof stream?.url === 'string' ? stream.url : '';
+      const description = typeof stream?.description === 'string' ? stream.description : '';
+      const filename = typeof stream?.behaviorHints?.filename === 'string' ? stream.behaviorHints.filename : '';
+      const candidates = [url, description, filename].filter(Boolean);
+
+      for (const candidate of candidates) {
+        const hash = extractInfoHashFromText(candidate);
+        if (hash) return hash;
+      }
+      return null;
+    }
+
     async function testAioLink() {
       let aioLink = document.getElementById('aioLink').value.trim();
       if (!aioLink) {
@@ -440,8 +469,36 @@
         const response = await fetch(testUrl);
         if (response.ok) {
           const data = await response.json();
-          const streamCount = Array.isArray(data?.streams) ? data.streams.length : 0;
-          alert('✅ Link válido! Devolvió ' + streamCount + ' streams para la película de prueba.');
+          const streams = Array.isArray(data?.streams) ? data.streams : [];
+          const streamCount = streams.length;
+
+          if (streamCount === 0) {
+            alert('❌ Link devolvió 0 streams. Verifica que la URL sea correcta.');
+            return;
+          }
+
+          // Check how many streams have valid infoHash
+          let streamsWithHash = 0;
+          for (const stream of streams) {
+            if (findInfoHashInStream(stream)) {
+              streamsWithHash++;
+            }
+          }
+
+          if (streamsWithHash === 0) {
+            alert('⚠️  Link válido pero NO ENCONTRÓ infoHash en los streams.\n\n' +
+                  'Devolvió ' + streamCount + ' streams, pero ninguno contiene un campo infoHash válido.\n\n' +
+                  'El formato debe incluir infoHash en:\n' +
+                  '• URL del stream (btih:HASH o /resolve/.../HASH)\n' +
+                  '• Campo description\n' +
+                  '• Campo name\n' +
+                  '• Behavioral hints (filename)\n\n' +
+                  'Por favor verifica el formato de tu AIOStreams.');
+          } else {
+            alert('✅ Link válido! Devolvió ' + streamCount + ' streams.\n' +
+                  '✓ ' + streamsWithHash + ' streams tienen infoHash válido.\n\n' +
+                  'Este addon debería funcionar correctamente.');
+          }
         } else {
           alert('❌ Link inválido. El servidor devolvió: ' + response.status + ' ' + response.statusText);
         }
