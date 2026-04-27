@@ -260,6 +260,12 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
 
     <form id="configForm">
       <div class="form-group">
+        <label for="serverUrl">URL Base del Servidor</label>
+        <input type="text" id="serverUrl" placeholder="http://144.217.164.119:8787" value="http://localhost:8787">
+        <div class="help-text">URL pública de tu servidor (ej: http://tu-vps:8787 o http://144.217.164.119:8787)</div>
+      </div>
+
+      <div class="form-group">
         <label for="aioLink">Link de AIOStreams</label>
         <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/..." required></textarea>
         <div class="help-text">Pega tu link completo de AIOStreams aquí</div>
@@ -336,11 +342,17 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
       e.preventDefault();
       errorBox.classList.remove('show');
 
+      const serverUrl = document.getElementById('serverUrl').value.trim();
       const aioLink = document.getElementById('aioLink').value.trim();
       const preferLatino = document.getElementById('preferLatino').checked;
       const latinoOnly = document.getElementById('latinoOnly').checked;
       const markers = document.getElementById('markers').value.trim();
       const maxStreams = parseInt(document.getElementById('maxStreams').value) || 0;
+
+      if (!serverUrl) {
+        showError('Por favor especifica la URL base del servidor');
+        return;
+      }
 
       if (!aioLink) {
         showError('Por favor pega tu link de AIOStreams');
@@ -357,6 +369,7 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            serverUrl,
             aioLink,
             preferLatino,
             latinoOnly,
@@ -720,10 +733,10 @@ const server = createServer(async (req, res) => {
     req.on("end", () => {
       try {
         const payload = JSON.parse(body);
-        const { aioLink, preferLatino, latinoOnly, markers, maxStreams } = payload;
+        const { serverUrl, aioLink, preferLatino, latinoOnly, markers, maxStreams } = payload;
 
-        if (!aioLink || !markers) {
-          sendJson(res, 400, { error: "aioLink and markers are required" });
+        if (!serverUrl || !aioLink || !markers) {
+          sendJson(res, 400, { error: "serverUrl, aioLink and markers are required" });
           return;
         }
 
@@ -740,7 +753,7 @@ const server = createServer(async (req, res) => {
 
         configStore.set(configId, config);
 
-        const baseUrl = `http://${req.headers.host || "localhost"}`;
+        const baseUrl = serverUrl.replace(/\/$/, ""); // Remove trailing slash
         const configUrl = `${baseUrl}/config/${configId}.json`;
         const customStreamBase = `${baseUrl}/custom/${configId}/stream`;
 
@@ -785,7 +798,7 @@ const server = createServer(async (req, res) => {
           config
         });
       } catch (error) {
-        sendJson(res, 400, { error: "Invalid JSON payload" });
+        sendJson(res, 400, { error: "Invalid JSON payload", detail: String(error) });
       }
     });
     return;
