@@ -312,6 +312,9 @@ async function handleStream(req, res, pathname, config) {
 
       if (preferred.length > 0) {
         output = cfg.latinoOnly ? preferred : [...preferred, ...others];
+      } else {
+        // No preferred Latino streams found — return all streams so users still see content
+        output = converted;
       }
     }
 
