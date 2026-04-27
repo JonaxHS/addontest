@@ -917,6 +917,30 @@ const server = createServer(async (req, res) => {
     }
   }
 
+  // Debug: Show what upstream URL will be called
+  if (pathname.startsWith("/custom/") && pathname.includes("/stream/") && pathname.endsWith(".json?debug=1")) {
+    const match = pathname.match(/^\/custom\/([^/]+)\/stream\/(.+)(\?debug=1)?$/);
+    if (match) {
+      const [, configId, streamPath] = match;
+      const config = configStore.get(configId);
+
+      if (!config) {
+        sendJson(res, 404, { error: "Configuration not found" });
+        return;
+      }
+
+      const upstreamUrl = `${config.aioBase}/${streamPath}.json`;
+      sendJson(res, 200, {
+        configId,
+        streamPath,
+        aioBase: config.aioBase,
+        upstreamUrl,
+        config
+      });
+      return;
+    }
+  }
+
   // Custom stream endpoint: /custom/:configId/stream/*
   if (pathname.startsWith("/custom/") && pathname.includes("/stream/")) {
     const match = pathname.match(/^\/custom\/([^/]+)\/stream\/(.+)$/);
