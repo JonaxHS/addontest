@@ -651,102 +651,108 @@ function hasPreferredLatino(stream, markers = LATINO_MARKERS) {
 }
 
 async function handleStream(req, res, pathname, config) {
-  const cfg = config || {
-    aioBase: AIO_BASE,
-    preferLatino: PREFER_LATINO,
-    latinoOnly: LATINO_ONLY,
-    maxStreams: MAX_STREAMS,
-    latinoMarkers: LATINO_MARKERS
-  };
-
-  const searchPattern = pathname.slice("/stream/".length, -".json".length);
-  if (!searchPattern) {
-    sendJson(res, 400, { error: "Missing search pattern." });
-    return;
-  }
-
-  const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
-
-  let upstreamResponse;
   try {
-    upstreamResponse = await fetch(upstreamUrl, { headers: { accept: "application/json" } });
+    const cfg = config || {
+      aioBase: AIO_BASE,
+      preferLatino: PREFER_LATINO,
+      latinoOnly: LATINO_ONLY,
+      maxStreams: MAX_STREAMS,
+      latinoMarkers: LATINO_MARKERS
+    };
+
+    const searchPattern = pathname.slice("/stream/".length, -".json".length);
+    if (!searchPattern) {
+      sendJson(res, 400, { error: "Missing search pattern." });
+      return;
+    }
+
+    const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
+
+    let upstreamResponse;
+    try {
+      upstreamResponse = await fetch(upstreamUrl, { headers: { accept: "application/json" } });
+    } catch (error) {
+      sendJson(res, 502, {
+        error: "Failed to fetch upstream AIOStreams endpoint.",
+        detail: String(error),
+        upstreamUrl
+      });
+      return;
+    }
+
+    if (!upstreamResponse.ok) {
+      sendJson(res, 502, {
+        error: "Upstream returned non-OK status.",
+        status: upstreamResponse.status,
+        upstreamUrl
+      });
+      return;
+    }
+
+    let payload;
+    try {
+      payload = await upstreamResponse.json();
+    } catch {
+      sendJson(res, 502, { error: "Upstream did not return valid JSON.", upstreamUrl });
+      return;
+    }
+
+    const streams = Array.isArray(payload?.streams) ? payload.streams : [];
+    const dedupe = new Set();
+    const converted = [];
+
+    for (const stream of streams) {
+      const infoHash = extractInfoHash(stream);
+      if (!infoHash || dedupe.has(infoHash)) continue;
+
+      dedupe.add(infoHash);
+      const upstreamLabel = normalizeName(stream, `AIOStreams ${searchPattern}`);
+      const provider = parseProvider(stream);
+      const qualityLine = parseQualityLine(stream);
+      const filename = upstreamLabel;
+      const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
+      const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
+      const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
+
+      converted.push({
+        name: `${provider}\n${qualityLine}`,
+        title: upstreamLabel,
+        infoHash,
+        fileIdx,
+        behaviorHints: {
+          bingeGroup,
+          filename,
+          videoSize
+        },
+        size: videoSize,
+        sourceUrl: typeof stream?.url === "string" ? stream.url : ""
+      });
+    }
+
+    let output = converted;
+
+    if (cfg.preferLatino && converted.length > 0) {
+      const preferred = [];
+      const others = [];
+
+      for (const item of converted) {
+        if (hasPreferredLatino(item, cfg.latinoMarkers)) preferred.push(item);
+        else others.push(item);
+      }
+
+      if (preferred.length > 0) {
+        output = cfg.latinoOnly ? preferred : [...preferred, ...others];
+      }
+    }
+
+    if (cfg.maxStreams > 0) {
+      output = output.slice(0, cfg.maxStreams);
+    }
+
+    sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
   } catch (error) {
-    sendJson(res, 502, {
-      error: "Failed to fetch upstream AIOStreams endpoint.",
-      detail: String(error)
-    });
-    return;
+    sendJson(res, 500, { error: "Internal server error", detail: String(error) });
   }
-
-  if (!upstreamResponse.ok) {
-    sendJson(res, 502, {
-      error: "Upstream returned non-OK status.",
-      status: upstreamResponse.status
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await upstreamResponse.json();
-  } catch {
-    sendJson(res, 502, { error: "Upstream did not return valid JSON." });
-    return;
-  }
-
-  const streams = Array.isArray(payload?.streams) ? payload.streams : [];
-  const dedupe = new Set();
-  const converted = [];
-
-  for (const stream of streams) {
-    const infoHash = extractInfoHash(stream);
-    if (!infoHash || dedupe.has(infoHash)) continue;
-
-    dedupe.add(infoHash);
-    const upstreamLabel = normalizeName(stream, `AIOStreams ${searchPattern}`);
-    const provider = parseProvider(stream);
-    const qualityLine = parseQualityLine(stream);
-    const filename = upstreamLabel;
-    const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
-    const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
-    const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
-
-    converted.push({
-      name: `${provider}\n${qualityLine}`,
-      title: upstreamLabel,
-      infoHash,
-      fileIdx,
-      behaviorHints: {
-        bingeGroup,
-        filename,
-        videoSize
-      },
-      size: videoSize,
-      sourceUrl: typeof stream?.url === "string" ? stream.url : ""
-    });
-  }
-
-  let output = converted;
-
-  if (cfg.preferLatino && converted.length > 0) {
-    const preferred = [];
-    const others = [];
-
-    for (const item of converted) {
-      if (hasPreferredLatino(item, cfg.latinoMarkers)) preferred.push(item);
-      else others.push(item);
-    }
-
-    if (preferred.length > 0) {
-      output = cfg.latinoOnly ? preferred : [...preferred, ...others];
-    }
-  }
-
-  if (cfg.maxStreams > 0) {
-    output = output.slice(0, cfg.maxStreams);
-  }
-
-  sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
 }
 
 const server = createServer(async (req, res) => {
@@ -986,11 +992,19 @@ const server = createServer(async (req, res) => {
       const config = configStore.get(configId);
 
       if (!config) {
-        sendJson(res, 404, { error: "Configuration not found" });
+        sendJson(res, 404, { 
+          error: "Configuration not found",
+          configId,
+          availableConfigs: Array.from(configStore.keys())
+        });
         return;
       }
 
-      await handleStream(req, res, `/stream/${streamPath}`, config);
+      try {
+        await handleStream(req, res, `/stream/${streamPath}`, config);
+      } catch (error) {
+        sendJson(res, 500, { error: "Handler error", detail: String(error) });
+      }
       return;
     }
   }
