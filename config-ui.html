@@ -149,6 +149,52 @@
       background: #e0e0e0;
     }
 
+    .btn-generate:disabled {
+      background: #ccc;
+      color: #999;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-generate:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .validation-status {
+      font-size: 12px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .validation-status.pending {
+      color: #ff9800;
+    }
+
+    .validation-status.valid {
+      color: #4caf50;
+    }
+
+    .validation-status.invalid {
+      color: #f44336;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255, 152, 0, 0.3);
+      border-top-color: #ff9800;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .btn-validate {
       padding: 8px 16px;
       background: #667eea;
@@ -259,7 +305,8 @@
         <label for="aioLink">Link de AIOStreams</label>
         <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/manifest.json" required></textarea>
         <div class="help-text">Pega tu link completo de AIOStreams (puede terminar en /manifest.json o /stream, se convertirá automáticamente)</div>
-        <button type="button" class="btn-validate" onclick="testAioLink()">Validar Link</button>
+        <button type="button" class="btn-validate" onclick="testAioLink()" id="validateBtn">Validar Link</button>
+        <div class="validation-status" id="validationStatus" style="display: none;"></div>
       </div>
 
       <div class="form-group">
@@ -290,8 +337,8 @@
       </div>
 
       <div class="button-group">
-        <button type="submit" class="btn-generate">Generar Addon</button>
-        <button type="reset" class="btn-reset">Limpiar</button>
+        <button type="submit" class="btn-generate" id="generateBtn" disabled>Generar Addon</button>
+        <button type="reset" class="btn-reset" onclick="resetValidation()">Limpiar</button>
       </div>
     </form>
 
@@ -328,10 +375,17 @@
     const form = document.getElementById('configForm');
     const resultSection = document.getElementById('resultSection');
     const errorBox = document.getElementById('error');
+    let linkValidated = false;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorBox.classList.remove('show');
+
+      if (!linkValidated) {
+        showError('Debes validar el link de AIOStreams primero (botón "Validar Link").');
+        document.getElementById('aioLink').focus();
+        return;
+      }
 
       const serverUrl = window.location.origin;
       const urlParams = new URLSearchParams(window.location.search);
@@ -456,6 +510,8 @@
         return;
       }
 
+      updateValidationStatus('pending', 'Verificando link y streams...');
+
       if (aioLink.endsWith("/manifest.json")) {
         aioLink = aioLink.replace("/manifest.json", "/stream");
       }
@@ -473,7 +529,8 @@
           const streamCount = streams.length;
 
           if (streamCount === 0) {
-            alert('❌ Link devolvió 0 streams. Verifica que la URL sea correcta.');
+            updateValidationStatus('invalid', 'Link devolvió 0 streams');
+            showError('El link devolvió 0 streams. Verifica que la URL sea correcta.');
             return;
           }
 
@@ -486,24 +543,24 @@
           }
 
           if (streamsWithHash === 0) {
-            alert('⚠️  Link válido pero NO ENCONTRÓ infoHash en los streams.\n\n' +
-                  'Devolvió ' + streamCount + ' streams, pero ninguno contiene un campo infoHash válido.\n\n' +
+            updateValidationStatus('invalid', 'No hay infoHash en los streams');
+            showError('⚠️  Link válido pero NO ENCONTRÓ infoHash en los ' + streamCount + ' streams.\n\n' +
                   'El formato debe incluir infoHash en:\n' +
                   '• URL del stream (btih:HASH o /resolve/.../HASH)\n' +
                   '• Campo description\n' +
-                  '• Campo name\n' +
-                  '• Behavioral hints (filename)\n\n' +
+                  '• Campo name\n\n' +
                   'Por favor verifica el formato de tu AIOStreams.');
           } else {
-            alert('✅ Link válido! Devolvió ' + streamCount + ' streams.\n' +
-                  '✓ ' + streamsWithHash + ' streams tienen infoHash válido.\n\n' +
-                  'Este addon debería funcionar correctamente.');
+            updateValidationStatus('valid', streamsWithHash + ' de ' + streamCount + ' streams validados');
+            showError('');
           }
         } else {
-          alert('❌ Link inválido. El servidor devolvió: ' + response.status + ' ' + response.statusText);
+          updateValidationStatus('invalid', 'Error: ' + response.status);
+          showError('El servidor devolvió: ' + response.status + ' ' + response.statusText);
         }
       } catch (error) {
-        alert('❌ Error: No se puede conectar a ' + testUrl);
+        updateValidationStatus('invalid', 'No se puede conectar');
+        showError('Error: No se puede conectar a ' + testUrl);
       }
     }
 
@@ -511,6 +568,34 @@
       errorBox.innerText = message;
       errorBox.classList.add('show');
       errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function updateValidationStatus(state, message) {
+      const statusEl = document.getElementById('validationStatus');
+      const generateBtn = document.getElementById('generateBtn');
+      
+      statusEl.className = 'validation-status ' + state;
+      statusEl.style.display = message ? 'flex' : 'none';
+      
+      if (state === 'pending') {
+        statusEl.innerHTML = '<span class="spinner"></span> <span>' + message + '</span>';
+        generateBtn.disabled = true;
+        linkValidated = false;
+      } else if (state === 'valid') {
+        statusEl.innerHTML = '✓ ' + message;
+        generateBtn.disabled = false;
+        linkValidated = true;
+      } else if (state === 'invalid') {
+        statusEl.innerHTML = '✗ ' + message;
+        generateBtn.disabled = true;
+        linkValidated = false;
+      }
+    }
+
+    function resetValidation() {
+      linkValidated = false;
+      document.getElementById('generateBtn').disabled = true;
+      document.getElementById('validationStatus').style.display = 'none';
     }
   </script>
 </body>
