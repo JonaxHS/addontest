@@ -1,6 +1,9 @@
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8787);
 const AIO_BASE =
   process.env.AIO_BASE ||
@@ -291,12 +294,12 @@ const server = createServer(async (req, res) => {
   // Serve HTML config generator at root
   if (pathname === "/" && method === "GET") {
     try {
-      const html = readFileSync("./config-generator.html", "utf8");
+      const html = readFileSync(join(__dirname, "config-generator.html"), "utf8");
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(html);
       return;
     } catch (error) {
-      sendJson(res, 500, { error: "Could not load config generator" });
+      sendJson(res, 500, { error: "Could not load config generator", detail: String(error) });
       return;
     }
   }
