@@ -4,6 +4,13 @@ const PORT = Number(process.env.PORT || 8787);
 const AIO_BASE =
   process.env.AIO_BASE ||
   "https://aiostream.axonim.lat/stremio/35099f5e-fd8c-488f-a701-2bd66af59ead/eyJpIjoiT3ExWVFONXE1alQ3MVVvaEVKNU5CZz09IiwiZSI6IkpGYWxsWGtjZDVCUndTRDdNWlVlOUJpRnE0UzQwOEpvZEljaTFFUDQwOU09IiwidCI6ImEifQ/stream";
+const PREFER_LATINO = process.env.PREFER_LATINO !== "false";
+const LATINO_ONLY = process.env.LATINO_ONLY === "true";
+const MAX_STREAMS = Number(process.env.MAX_STREAMS || 0);
+const LATINO_MARKERS = (process.env.LATINO_MARKERS || "latino,lat,castellano,espanol,español")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -149,6 +156,26 @@ function buildTitle(stream, provider) {
   return `${base}\nSize ${size} Source ${provider}`;
 }
 
+function normalizeForMatch(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function hasPreferredLatino(stream) {
+  const haystack = normalizeForMatch(
+    `${stream?.name || ""}\n${stream?.title || ""}\n${stream?.behaviorHints?.filename || ""}`
+  );
+  const tokens = new Set(haystack.split(/[^a-z0-9]+/).filter(Boolean));
+
+  return LATINO_MARKERS.some((rawMarker) => {
+    const marker = normalizeForMatch(rawMarker);
+    if (marker.length <= 3) return tokens.has(marker);
+    return haystack.includes(marker);
+  });
+}
+
 async function handleStream(req, res, pathname) {
   const searchPattern = pathname.slice("/stream/".length, -".json".length);
   if (!searchPattern) {
@@ -217,7 +244,27 @@ async function handleStream(req, res, pathname) {
     });
   }
 
-  sendJson(res, 200, { streams: converted, count: converted.length, upstreamUrl });
+  let output = converted;
+
+  if (PREFER_LATINO && converted.length > 0) {
+    const preferred = [];
+    const others = [];
+
+    for (const item of converted) {
+      if (hasPreferredLatino(item)) preferred.push(item);
+      else others.push(item);
+    }
+
+    if (preferred.length > 0) {
+      output = LATINO_ONLY ? preferred : [...preferred, ...others];
+    }
+  }
+
+  if (MAX_STREAMS > 0) {
+    output = output.slice(0, MAX_STREAMS);
+  }
+
+  sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
 }
 
 const server = createServer(async (req, res) => {
