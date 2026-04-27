@@ -308,9 +308,9 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
       </div>
 
       <div class="result-item">
-        <div class="result-label">URL del Addon (para DebridStream):</div>
-        <div class="result-box" id="addonUrl"></div>
-        <button class="copy-btn" onclick="copyToClipboard('addonUrl')">Copiar URL</button>
+        <div class="result-label">URL para DebridStream (configUrl):</div>
+        <div class="result-box" id="configUrl"></div>
+        <button class="copy-btn" onclick="copyToClipboard('configUrl')">Copiar URL</button>
       </div>
 
       <div class="result-item">
@@ -379,11 +379,11 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
 
     function displayResults(data) {
       document.getElementById('addonId').innerText = data.id;
-      document.getElementById('addonUrl').innerText = data.url;
+      document.getElementById('configUrl').innerText = data.configUrl;
       document.getElementById('configJson').innerText = JSON.stringify(data.debridConfig, null, 2);
 
       // Generate QR code
-      const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(JSON.stringify(data.debridConfig))}\`;
+      const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(data.configUrl)}\`;
       document.getElementById('qrCode').src = qrUrl;
 
       resultSection.classList.add('show');
@@ -741,7 +741,8 @@ const server = createServer(async (req, res) => {
         configStore.set(configId, config);
 
         const baseUrl = `http://${req.headers.host || "localhost"}`;
-        const customUrl = `${baseUrl}/custom/${configId}/stream`;
+        const configUrl = `${baseUrl}/config/${configId}.json`;
+        const customStreamBase = `${baseUrl}/custom/${configId}/stream`;
 
         // Generate DebridStream configuration
         const debridConfig = [
@@ -758,7 +759,7 @@ const server = createServer(async (req, res) => {
               movie: "movie/%imdbId",
               tv: "series/%imdbId:%season:%episode"
             },
-            url: `${customUrl}/%searchPattern.json`
+            url: `${customStreamBase}/%searchPattern.json`
           },
           {
             name: "AIOStreams Bridge",
@@ -773,14 +774,14 @@ const server = createServer(async (req, res) => {
               movie: "movie/%imdbId",
               tv: "series/%imdbId:%season:%episode"
             },
-            url: `${customUrl}/%searchPattern.json`
+            url: `${customStreamBase}/%searchPattern.json`
           }
         ];
 
         sendJson(res, 200, {
           id: configId,
+          configUrl,
           debridConfig,
-          url: customUrl,
           config
         });
       } catch (error) {
@@ -791,8 +792,8 @@ const server = createServer(async (req, res) => {
   }
 
   // Get DebridStream config for a custom configuration
-  if (pathname.startsWith("/custom/") && pathname.endsWith("/debrid-config.json")) {
-    const match = pathname.match(/^\/custom\/([^/]+)\/debrid-config\.json$/);
+  if (pathname.startsWith("/config/") && pathname.endsWith(".json")) {
+    const match = pathname.match(/^\/config\/([^/]+)\.json$/);
     if (match) {
       const [, configId] = match;
       const config = configStore.get(configId);
