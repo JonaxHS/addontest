@@ -260,12 +260,6 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
 
     <form id="configForm">
       <div class="form-group">
-        <label for="serverUrl">URL Base del Servidor</label>
-        <input type="text" id="serverUrl" placeholder="http://144.217.164.119:8787" value="http://localhost:8787">
-        <div class="help-text">URL pública de tu servidor (ej: http://tu-vps:8787 o http://144.217.164.119:8787)</div>
-      </div>
-
-      <div class="form-group">
         <label for="aioLink">Link de AIOStreams</label>
         <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/..." required></textarea>
         <div class="help-text">Pega tu link completo de AIOStreams aquí</div>
@@ -342,17 +336,12 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
       e.preventDefault();
       errorBox.classList.remove('show');
 
-      const serverUrl = document.getElementById('serverUrl').value.trim();
+      const serverUrl = window.location.origin;
       const aioLink = document.getElementById('aioLink').value.trim();
       const preferLatino = document.getElementById('preferLatino').checked;
       const latinoOnly = document.getElementById('latinoOnly').checked;
       const markers = document.getElementById('markers').value.trim();
       const maxStreams = parseInt(document.getElementById('maxStreams').value) || 0;
-
-      if (!serverUrl) {
-        showError('Por favor especifica la URL base del servidor');
-        return;
-      }
 
       if (!aioLink) {
         showError('Por favor pega tu link de AIOStreams');
