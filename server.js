@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const PORT = Number(process.env.PORT || 8787);
 const AIO_BASE =
@@ -13,7 +14,30 @@ const LATINO_MARKERS = (process.env.LATINO_MARKERS || "latino,lat,castellano,esp
   .filter(Boolean);
 
 // In-memory store for generated configurations
-const configStore = new Map();
+const CONFIG_FILE = "./configs.json";
+
+function loadConfigs() {
+  if (existsSync(CONFIG_FILE)) {
+    try {
+      const data = readFileSync(CONFIG_FILE, "utf8");
+      return new Map(JSON.parse(data));
+    } catch {
+      return new Map();
+    }
+  }
+  return new Map();
+}
+
+function saveConfigs(map) {
+  try {
+    const data = JSON.stringify(Array.from(map.entries()));
+    writeFileSync(CONFIG_FILE, data, "utf8");
+  } catch (error) {
+    console.error("Error saving configs:", error);
+  }
+}
+
+let configStore = loadConfigs();
 
 // Embedded HTML for config generator
 const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
@@ -336,7 +360,10 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
       e.preventDefault();
       errorBox.classList.remove('show');
 
-      const serverUrl = window.location.origin;
+      // Get server URL from query param or page origin
+      const urlParams = new URLSearchParams(window.location.search);
+      const serverUrl = urlParams.get('server') || window.location.origin;
+      
       const aioLink = document.getElementById('aioLink').value.trim();
       const preferLatino = document.getElementById('preferLatino').checked;
       const latinoOnly = document.getElementById('latinoOnly').checked;
@@ -711,7 +738,50 @@ const server = createServer(async (req, res) => {
 
   // Health endpoint
   if (pathname === "/health" && method === "GET") {
-    sendJson(res, 200, { ok: true, service: "aiostreams-debrid-bridge" });
+    sendJson(res, 200, { ok: true, service: "aiostreams-debrid-bridge", configs: configStore.size });
+    return;
+  }
+
+  // Get specific configuration info
+  if (pathname.startsWith("/api/config/") && method === "GET") {
+    const configId = pathname.slice("/api/config/".length);
+    const config = configStore.get(configId);
+    if (!config) {
+      sendJson(res, 404, { error: "Configuration not found" });
+      return;
+    }
+    sendJson(res, 200, { id: configId, config });
+    return;
+  }
+
+  // List all configurations
+  if (pathname === "/api/configs" && method === "GET") {
+    const configs = Array.from(configStore.entries()).map(([id, config]) => ({
+      id,
+      aioBase: config.aioBase,
+      preferLatino: config.preferLatino,
+      latinoOnly: config.latinoOnly,
+      maxStreams: config.maxStreams
+    }));
+    sendJson(res, 200, { configs, total: configs.length });
+    return;
+  }
+
+  // Test AIOStreams link endpoint
+  if (pathname.startsWith("/api/test-aio/") && method === "GET") {
+    const aioLink = decodeURIComponent(pathname.slice("/api/test-aio/".length));
+    try {
+      const response = await fetch(aioLink, { headers: { accept: "application/json" } });
+      if (!response.ok) {
+        sendJson(res, 502, { error: "AIOStreams returned non-OK", status: response.status });
+        return;
+      }
+      const data = await response.json();
+      const streamCount = Array.isArray(data?.streams) ? data.streams.length : 0;
+      sendJson(res, 200, { ok: true, streamCount, preview: data });
+    } catch (error) {
+      sendJson(res, 502, { error: "Failed to fetch AIOStreams", detail: String(error) });
+    }
     return;
   }
 
@@ -741,6 +811,7 @@ const server = createServer(async (req, res) => {
         };
 
         configStore.set(configId, config);
+        saveConfigs(configStore);
 
         const baseUrl = serverUrl.replace(/\/$/, ""); // Remove trailing slash
         const configUrl = `${baseUrl}/config/${configId}.json`;
