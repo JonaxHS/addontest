@@ -285,8 +285,8 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
     <form id="configForm">
       <div class="form-group">
         <label for="aioLink">Link de AIOStreams</label>
-        <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/stream" required></textarea>
-        <div class="help-text">Pega tu link completo de AIOStreams aquí (debe terminar en /stream)</div>
+        <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/manifest.json" required></textarea>
+        <div class="help-text">Pega tu link completo de AIOStreams (puede terminar en /manifest.json o /stream, se convertirá automáticamente)</div>
         <button type="button" class="copy-btn" onclick="testAioLink()" style="margin-top: 8px;">Validar Link</button>
       </div>
 
@@ -456,14 +456,22 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
     }
 
     async function testAioLink() {
-      const aioLink = document.getElementById('aioLink').value.trim();
+      let aioLink = document.getElementById('aioLink').value.trim();
       if (!aioLink) {
         showError('Por favor pega un link de AIOStreams primero');
         return;
       }
 
+      // Convert manifest.json to /stream endpoint
+      if (aioLink.endsWith("/manifest.json")) {
+        aioLink = aioLink.replace("/manifest.json", "/stream");
+      }
+      if (!aioLink.endsWith("/stream")) {
+        aioLink = aioLink.replace(/\/$/, "") + "/stream";
+      }
+
       // Test a simple movie request to validate the link
-      const testUrl = aioLink.replace(/\/$/, '') + '/movie/tt0068646.json';
+      const testUrl = aioLink + '/movie/tt0068646.json';
       
       try {
         const response = await fetch(testUrl);
@@ -835,6 +843,11 @@ const server = createServer(async (req, res) => {
         if (!aioLink.startsWith("http")) {
           sendJson(res, 400, { error: "AIOStreams link must start with http:// or https://" });
           return;
+        }
+
+        // Convert manifest.json to /stream endpoint
+        if (aioLink.endsWith("/manifest.json")) {
+          aioLink = aioLink.replace("/manifest.json", "/stream");
         }
 
         // Ensure it ends with /stream
