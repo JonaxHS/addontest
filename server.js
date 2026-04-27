@@ -314,9 +314,10 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
       </div>
 
       <div class="result-item">
-        <div class="result-label">Configuración JSON:</div>
+        <div class="result-label">Configuración JSON para DebridStream:</div>
         <div class="result-box" id="configJson" style="max-height: 300px;"></div>
         <button class="copy-btn" onclick="copyToClipboard('configJson')">Copiar JSON</button>
+        <button class="copy-btn" onclick="downloadConfig()" style="margin-left: 8px;">Descargar</button>
       </div>
 
       <div class="qr-code">
@@ -379,10 +380,10 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
     function displayResults(data) {
       document.getElementById('addonId').innerText = data.id;
       document.getElementById('addonUrl').innerText = data.url;
-      document.getElementById('configJson').innerText = JSON.stringify(data.config, null, 2);
+      document.getElementById('configJson').innerText = JSON.stringify(data.debridConfig, null, 2);
 
       // Generate QR code
-      const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(data.url)}\`;
+      const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(JSON.stringify(data.debridConfig))}\`;
       document.getElementById('qrCode').src = qrUrl;
 
       resultSection.classList.add('show');
@@ -402,6 +403,20 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
           btn.classList.remove('copied');
         }, 2000);
       });
+    }
+
+    function downloadConfig() {
+      const element = document.getElementById('configJson');
+      const text = element.innerText;
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'debrid-config.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     function showError(message) {
@@ -726,10 +741,45 @@ const server = createServer(async (req, res) => {
         configStore.set(configId, config);
 
         const baseUrl = `http://${req.headers.host || "localhost"}`;
-        const customUrl = `${baseUrl}/custom/${configId}/stream/%searchPattern.json`;
+        const customUrl = `${baseUrl}/custom/${configId}/stream`;
+
+        // Generate DebridStream configuration
+        const debridConfig = [
+          {
+            name: "AIOStreams Bridge",
+            type: "json_imdb",
+            imdbType: "tv",
+            itemType: "info_hash",
+            infoHashTargetKey: "infoHash",
+            jsonResultsKey: "streams",
+            torrentNameTargetKey: "title",
+            sizeAttr: "behaviorHints.videoSize",
+            searchPattern: {
+              movie: "movie/%imdbId",
+              tv: "series/%imdbId:%season:%episode"
+            },
+            url: `${customUrl}/%searchPattern.json`
+          },
+          {
+            name: "AIOStreams Bridge",
+            type: "json_imdb",
+            imdbType: "movie",
+            itemType: "info_hash",
+            infoHashTargetKey: "infoHash",
+            jsonResultsKey: "streams",
+            torrentNameTargetKey: "title",
+            sizeAttr: "behaviorHints.videoSize",
+            searchPattern: {
+              movie: "movie/%imdbId",
+              tv: "series/%imdbId:%season:%episode"
+            },
+            url: `${customUrl}/%searchPattern.json`
+          }
+        ];
 
         sendJson(res, 200, {
           id: configId,
+          debridConfig,
           url: customUrl,
           config
         });
@@ -738,6 +788,59 @@ const server = createServer(async (req, res) => {
       }
     });
     return;
+  }
+
+  // Get DebridStream config for a custom configuration
+  if (pathname.startsWith("/custom/") && pathname.endsWith("/debrid-config.json")) {
+    const match = pathname.match(/^\/custom\/([^/]+)\/debrid-config\.json$/);
+    if (match) {
+      const [, configId] = match;
+      const config = configStore.get(configId);
+
+      if (!config) {
+        sendJson(res, 404, { error: "Configuration not found" });
+        return;
+      }
+
+      const baseUrl = `http://${req.headers.host || "localhost"}`;
+      const customUrl = `${baseUrl}/custom/${configId}/stream`;
+
+      const debridConfig = [
+        {
+          name: "AIOStreams Bridge",
+          type: "json_imdb",
+          imdbType: "tv",
+          itemType: "info_hash",
+          infoHashTargetKey: "infoHash",
+          jsonResultsKey: "streams",
+          torrentNameTargetKey: "title",
+          sizeAttr: "behaviorHints.videoSize",
+          searchPattern: {
+            movie: "movie/%imdbId",
+            tv: "series/%imdbId:%season:%episode"
+          },
+          url: `${customUrl}/%searchPattern.json`
+        },
+        {
+          name: "AIOStreams Bridge",
+          type: "json_imdb",
+          imdbType: "movie",
+          itemType: "info_hash",
+          infoHashTargetKey: "infoHash",
+          jsonResultsKey: "streams",
+          torrentNameTargetKey: "title",
+          sizeAttr: "behaviorHints.videoSize",
+          searchPattern: {
+            movie: "movie/%imdbId",
+            tv: "series/%imdbId:%season:%episode"
+          },
+          url: `${customUrl}/%searchPattern.json`
+        }
+      ];
+
+      sendJson(res, 200, debridConfig);
+      return;
+    }
   }
 
   // Custom stream endpoint: /custom/:configId/stream/*
