@@ -285,8 +285,9 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
     <form id="configForm">
       <div class="form-group">
         <label for="aioLink">Link de AIOStreams</label>
-        <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/..." required></textarea>
-        <div class="help-text">Pega tu link completo de AIOStreams aquí</div>
+        <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/stream" required></textarea>
+        <div class="help-text">Pega tu link completo de AIOStreams aquí (debe terminar en /stream)</div>
+        <button type="button" class="copy-btn" onclick="testAioLink()" style="margin-top: 8px;">Validar Link</button>
       </div>
 
       <div class="form-group">
@@ -452,6 +453,30 @@ const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
       errorBox.innerText = message;
       errorBox.classList.add('show');
       errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function testAioLink() {
+      const aioLink = document.getElementById('aioLink').value.trim();
+      if (!aioLink) {
+        showError('Por favor pega un link de AIOStreams primero');
+        return;
+      }
+
+      // Test a simple movie request to validate the link
+      const testUrl = aioLink.replace(/\/$/, '') + '/movie/tt0068646.json';
+      
+      try {
+        const response = await fetch(testUrl);
+        if (response.ok) {
+          const data = await response.json();
+          const streamCount = Array.isArray(data?.streams) ? data.streams.length : 0;
+          alert(\`✅ Link válido! Devolvió \${streamCount} streams para la película de prueba.\`);
+        } else {
+          alert(\`❌ Link inválido. El servidor devolvió: \${response.status} \${response.statusText}\`);
+        }
+      } catch (error) {
+        alert(\`❌ Error: No se puede conectar a \${testUrl}\`);
+      }
     }
   </script>
 </body>
@@ -792,11 +817,23 @@ const server = createServer(async (req, res) => {
     req.on("end", () => {
       try {
         const payload = JSON.parse(body);
-        const { serverUrl, aioLink, preferLatino, latinoOnly, markers, maxStreams } = payload;
+        let { serverUrl, aioLink, preferLatino, latinoOnly, markers, maxStreams } = payload;
 
         if (!serverUrl || !aioLink || !markers) {
           sendJson(res, 400, { error: "serverUrl, aioLink and markers are required" });
           return;
+        }
+
+        // Normalize AIOStreams link
+        aioLink = aioLink.trim();
+        if (!aioLink.startsWith("http")) {
+          sendJson(res, 400, { error: "AIOStreams link must start with http:// or https://" });
+          return;
+        }
+
+        // Ensure it ends with /stream
+        if (!aioLink.endsWith("/stream")) {
+          aioLink = aioLink.replace(/\/$/, "") + "/stream";
         }
 
         const configId = generateConfigId();
