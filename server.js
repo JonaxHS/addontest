@@ -61,6 +61,12 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
+function getRequestBaseUrl(req) {
+  const forwarded = (req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const proto = forwarded || (req.socket && req.socket.encrypted ? 'https' : 'http');
+  const host = req.headers.host || 'localhost';
+  return `${proto}://${host}`;
+}
 function toHexInfoHash(candidate) {
   if (!candidate) return null;
   if (/^[A-Fa-f0-9]{40}$/.test(candidate)) {
@@ -434,7 +440,17 @@ const server = createServer(async (req, res) => {
         configStore.set(configId, config);
         saveConfigs(configStore);
 
-        const baseUrl = serverUrl.replace(/\/$/, ""); // Remove trailing slash
+        let baseUrl;
+        if (serverUrl && /^https?:\/\//i.test(serverUrl)) {
+          baseUrl = serverUrl.replace(/\/$/, ""); // Remove trailing slash
+          const reqProto = (req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || (req.socket && req.socket.encrypted ? 'https' : 'http');
+          if (reqProto === 'https' && baseUrl.startsWith('http://')) {
+            baseUrl = baseUrl.replace(/^http:\/\//i, 'https://');
+          }
+        } else {
+          baseUrl = getRequestBaseUrl(req);
+        }
+
         const configUrl = `${baseUrl}/config/${configId}.json`;
         const customStreamBase = `${baseUrl}/custom/${configId}/stream`;
 
@@ -497,7 +513,7 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      const baseUrl = `http://${req.headers.host || "localhost"}`;
+      const baseUrl = getRequestBaseUrl(req);
       const customUrl = `${baseUrl}/custom/${configId}/stream`;
 
       const debridConfig = [
