@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
 
 const PORT = Number(process.env.PORT || 8787);
 const AIO_BASE =
@@ -11,6 +12,9 @@ const LATINO_MARKERS = (process.env.LATINO_MARKERS || "latino,lat,castellano,esp
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
+
+// In-memory store for generated configurations
+const configStore = new Map();
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -163,27 +167,39 @@ function normalizeForMatch(text) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function hasPreferredLatino(stream) {
+function generateConfigId() {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
+function hasPreferredLatino(stream, markers = LATINO_MARKERS) {
   const haystack = normalizeForMatch(
     `${stream?.name || ""}\n${stream?.title || ""}\n${stream?.behaviorHints?.filename || ""}`
   );
   const tokens = new Set(haystack.split(/[^a-z0-9]+/).filter(Boolean));
 
-  return LATINO_MARKERS.some((rawMarker) => {
+  return markers.some((rawMarker) => {
     const marker = normalizeForMatch(rawMarker);
     if (marker.length <= 3) return tokens.has(marker);
     return haystack.includes(marker);
   });
 }
 
-async function handleStream(req, res, pathname) {
+async function handleStream(req, res, pathname, config) {
+  const cfg = config || {
+    aioBase: AIO_BASE,
+    preferLatino: PREFER_LATINO,
+    latinoOnly: LATINO_ONLY,
+    maxStreams: MAX_STREAMS,
+    latinoMarkers: LATINO_MARKERS
+  };
+
   const searchPattern = pathname.slice("/stream/".length, -".json".length);
   if (!searchPattern) {
     sendJson(res, 400, { error: "Missing search pattern." });
     return;
   }
 
-  const upstreamUrl = `${AIO_BASE}/${searchPattern}.json`;
+  const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
 
   let upstreamResponse;
   try {
@@ -246,22 +262,22 @@ async function handleStream(req, res, pathname) {
 
   let output = converted;
 
-  if (PREFER_LATINO && converted.length > 0) {
+  if (cfg.preferLatino && converted.length > 0) {
     const preferred = [];
     const others = [];
 
     for (const item of converted) {
-      if (hasPreferredLatino(item)) preferred.push(item);
+      if (hasPreferredLatino(item, cfg.latinoMarkers)) preferred.push(item);
       else others.push(item);
     }
 
     if (preferred.length > 0) {
-      output = LATINO_ONLY ? preferred : [...preferred, ...others];
+      output = cfg.latinoOnly ? preferred : [...preferred, ...others];
     }
   }
 
-  if (MAX_STREAMS > 0) {
-    output = output.slice(0, MAX_STREAMS);
+  if (cfg.maxStreams > 0) {
+    output = output.slice(0, cfg.maxStreams);
   }
 
   sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
@@ -270,12 +286,87 @@ async function handleStream(req, res, pathname) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   const pathname = url.pathname;
+  const method = req.method;
 
-  if (pathname === "/health") {
+  // Serve HTML config generator at root
+  if (pathname === "/" && method === "GET") {
+    try {
+      const html = readFileSync("./config-generator.html", "utf8");
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
+    } catch (error) {
+      sendJson(res, 500, { error: "Could not load config generator" });
+      return;
+    }
+  }
+
+  // Health endpoint
+  if (pathname === "/health" && method === "GET") {
     sendJson(res, 200, { ok: true, service: "aiostreams-debrid-bridge" });
     return;
   }
 
+  // API: Generate custom configuration
+  if (pathname === "/api/generate-config" && method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      try {
+        const payload = JSON.parse(body);
+        const { aioLink, preferLatino, latinoOnly, markers, maxStreams } = payload;
+
+        if (!aioLink || !markers) {
+          sendJson(res, 400, { error: "aioLink and markers are required" });
+          return;
+        }
+
+        const configId = generateConfigId();
+        const markerList = markers.split(",").map((m) => m.trim()).filter(Boolean);
+
+        const config = {
+          aioBase: aioLink,
+          preferLatino: preferLatino !== false,
+          latinoOnly: latinoOnly === true,
+          maxStreams: parseInt(maxStreams) || 0,
+          latinoMarkers: markerList
+        };
+
+        configStore.set(configId, config);
+
+        const baseUrl = `http://${req.headers.host || "localhost"}`;
+        const customUrl = `${baseUrl}/custom/${configId}/stream/%searchPattern.json`;
+
+        sendJson(res, 200, {
+          id: configId,
+          url: customUrl,
+          config
+        });
+      } catch (error) {
+        sendJson(res, 400, { error: "Invalid JSON payload" });
+      }
+    });
+    return;
+  }
+
+  // Custom stream endpoint: /custom/:configId/stream/*
+  if (pathname.startsWith("/custom/") && pathname.includes("/stream/")) {
+    const match = pathname.match(/^\/custom\/([^/]+)\/stream\/(.+)$/);
+    if (match) {
+      const [, configId, streamPath] = match;
+      const config = configStore.get(configId);
+
+      if (!config) {
+        sendJson(res, 404, { error: "Configuration not found" });
+        return;
+      }
+
+      await handleStream(req, res, `/stream/${streamPath}`, config);
+      return;
+    }
+  }
+
+  // Default stream endpoint: /stream/*
   if (pathname.startsWith("/stream/") && pathname.endsWith(".json")) {
     await handleStream(req, res, pathname);
     return;
@@ -283,7 +374,7 @@ const server = createServer(async (req, res) => {
 
   sendJson(res, 404, {
     error: "Not found.",
-    hint: "Use /stream/movie/<imdbId>.json or /stream/series/<imdbId>:<season>:<episode>.json"
+    hint: "Use /stream/movie/<imdbId>.json or /stream/series/<imdbId>:<season>:<episode>.json or visit / for the config generator"
   });
 });
 
