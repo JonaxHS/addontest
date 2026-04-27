@@ -1,9 +1,5 @@
 import { createServer } from "node:http";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8787);
 const AIO_BASE =
   process.env.AIO_BASE ||
@@ -18,6 +14,404 @@ const LATINO_MARKERS = (process.env.LATINO_MARKERS || "latino,lat,castellano,esp
 
 // In-memory store for generated configurations
 const configStore = new Map();
+
+// Embedded HTML for config generator
+const CONFIG_GENERATOR_HTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Addon AIOStreams → DebridStream</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 700px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #999;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      color: #333;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #667eea;
+    }
+
+    .checkbox-item label {
+      margin: 0;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #999;
+      margin-top: 6px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-generate {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-generate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-generate:active {
+      transform: translateY(0);
+    }
+
+    .btn-reset {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-reset:hover {
+      background: #e0e0e0;
+    }
+
+    .result-section {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 2px solid #f0f0f0;
+      display: none;
+    }
+
+    .result-section.show {
+      display: block;
+    }
+
+    .result-title {
+      color: #333;
+      font-weight: 600;
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+
+    .result-box {
+      background: #f8f8f8;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 12px;
+      word-break: break-all;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .copy-btn {
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .copy-btn:hover {
+      background: #764ba2;
+    }
+
+    .copy-btn.copied {
+      background: #4caf50;
+    }
+
+    .result-item {
+      margin-bottom: 15px;
+    }
+
+    .result-label {
+      color: #667eea;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .qr-code {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .qr-code img {
+      max-width: 200px;
+    }
+
+    .error {
+      background: #fee;
+      color: #c00;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .error.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 Generador de Addon</h1>
+    <p class="subtitle">AIOStreams → DebridStream Bridge Personalizado</p>
+
+    <div class="error" id="error"></div>
+
+    <form id="configForm">
+      <div class="form-group">
+        <label for="aioLink">Link de AIOStreams</label>
+        <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/..." required></textarea>
+        <div class="help-text">Pega tu link completo de AIOStreams aquí</div>
+      </div>
+
+      <div class="form-group">
+        <label>Preferencias de Idioma</label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="preferLatino" checked>
+            <label for="preferLatino">Preferir Latino</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="latinoOnly">
+            <label for="latinoOnly">Solo Latino</label>
+          </div>
+        </div>
+        <div class="help-text">Marca "Solo Latino" si deseas excluir streams que no sean en español</div>
+      </div>
+
+      <div class="form-group">
+        <label for="markers">Marcadores de Latino</label>
+        <input type="text" id="markers" value="latino,lat,castellano,espanol,español" required>
+        <div class="help-text">Palabras clave separadas por comas para detectar streams en español</div>
+      </div>
+
+      <div class="form-group">
+        <label for="maxStreams">Máximo de Resultados</label>
+        <input type="number" id="maxStreams" value="8" min="0">
+        <div class="help-text">Limite de streams a mostrar (0 = sin límite)</div>
+      </div>
+
+      <div class="button-group">
+        <button type="submit" class="btn-generate">Generar Addon</button>
+        <button type="reset" class="btn-reset">Limpiar</button>
+      </div>
+    </form>
+
+    <div class="result-section" id="resultSection">
+      <div class="result-title">✅ Tu Addon Generado</div>
+
+      <div class="result-item">
+        <div class="result-label">ID del Addon:</div>
+        <div class="result-box" id="addonId"></div>
+        <button class="copy-btn" onclick="copyToClipboard('addonId')">Copiar ID</button>
+      </div>
+
+      <div class="result-item">
+        <div class="result-label">URL del Addon (para DebridStream):</div>
+        <div class="result-box" id="addonUrl"></div>
+        <button class="copy-btn" onclick="copyToClipboard('addonUrl')">Copiar URL</button>
+      </div>
+
+      <div class="result-item">
+        <div class="result-label">Configuración JSON:</div>
+        <div class="result-box" id="configJson" style="max-height: 300px;"></div>
+        <button class="copy-btn" onclick="copyToClipboard('configJson')">Copiar JSON</button>
+      </div>
+
+      <div class="qr-code">
+        <div class="result-label">Código QR de la URL:</div>
+        <img id="qrCode" src="" alt="QR Code">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('configForm');
+    const resultSection = document.getElementById('resultSection');
+    const errorBox = document.getElementById('error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBox.classList.remove('show');
+
+      const aioLink = document.getElementById('aioLink').value.trim();
+      const preferLatino = document.getElementById('preferLatino').checked;
+      const latinoOnly = document.getElementById('latinoOnly').checked;
+      const markers = document.getElementById('markers').value.trim();
+      const maxStreams = parseInt(document.getElementById('maxStreams').value) || 0;
+
+      if (!aioLink) {
+        showError('Por favor pega tu link de AIOStreams');
+        return;
+      }
+
+      if (!markers) {
+        showError('Debes especificar al menos un marcador de idioma');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/generate-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            aioLink,
+            preferLatino,
+            latinoOnly,
+            markers,
+            maxStreams
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Error generando addon');
+        }
+
+        const data = await response.json();
+        displayResults(data);
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+
+    function displayResults(data) {
+      document.getElementById('addonId').innerText = data.id;
+      document.getElementById('addonUrl').innerText = data.url;
+      document.getElementById('configJson').innerText = JSON.stringify(data.config, null, 2);
+
+      // Generate QR code
+      const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(data.url)}\`;
+      document.getElementById('qrCode').src = qrUrl;
+
+      resultSection.classList.add('show');
+      resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      const text = element.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = '✓ Copiado!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    function showError(message) {
+      errorBox.innerText = message;
+      errorBox.classList.add('show');
+      errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  </script>
+</body>
+</html>`;
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -293,15 +687,9 @@ const server = createServer(async (req, res) => {
 
   // Serve HTML config generator at root
   if (pathname === "/" && method === "GET") {
-    try {
-      const html = readFileSync(join(__dirname, "config-generator.html"), "utf8");
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(html);
-      return;
-    } catch (error) {
-      sendJson(res, 500, { error: "Could not load config generator", detail: String(error) });
-      return;
-    }
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(CONFIG_GENERATOR_HTML);
+    return;
   }
 
   // Health endpoint
