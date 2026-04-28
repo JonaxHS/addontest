@@ -810,9 +810,11 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      console.log('📝 Formulario enviado...');
       errorBox.classList.remove('show');
 
       if (!linkValidated) {
+        console.warn('⚠️ Link no validado');
         showError('Debes validar el link de AIOStreams primero (botón "Validar Link").');
         document.getElementById('aioLink').focus();
         return;
@@ -826,8 +828,10 @@
       let aioLink = document.getElementById('aioLink').value.trim();
       
       // Check if using direct AIOStreams filtering
-      const useAioFiltering = document.getElementById('useAioFiltering').checked;
-      const fallbackAllLanguages = document.getElementById('fallbackAllLanguages').checked;
+      const useAioFilteringEl = document.getElementById('useAioFiltering');
+      const fallbackAllLanguagesEl = document.getElementById('fallbackAllLanguages');
+      const useAioFiltering = useAioFilteringEl ? useAioFilteringEl.checked : false;
+      const fallbackAllLanguages = fallbackAllLanguagesEl ? fallbackAllLanguagesEl.checked : false;
       
       // Get selected languages (empty if using AIOStreams filtering directly)
       let selectedLanguages = [];
@@ -855,6 +859,16 @@
       }
 
       try {
+        console.log('📤 Enviando configuración...', {
+          aioLink,
+          languagesCount: selectedLanguages.length,
+          useAioFiltering,
+          fallbackAllLanguages,
+          maxStreams
+        });
+        
+        showError('Generando addon... por favor espera.');
+        
         const response = await fetch('/api/generate-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -868,15 +882,27 @@
           })
         });
 
+        console.log('✓ Respuesta del servidor:', response.status);
+
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Error generando addon');
+          let errorMsg = 'Error generando addon';
+          try {
+            const error = await response.json();
+            errorMsg = error.error || errorMsg;
+          } catch (e) {
+            errorMsg = `Servidor respondió con error ${response.status}: ${response.statusText}`;
+          }
+          console.error('❌ Error del servidor:', errorMsg, response.status);
+          throw new Error(errorMsg);
         }
 
         const data = await response.json();
+        console.log('✓ Addon generado:', data.id);
+        errorBox.classList.remove('show');
         displayResults(data);
       } catch (error) {
-        showError(error.message);
+        console.error('❌ Error:', error.message);
+        showError('❌ ' + error.message);
       }
     });
 
