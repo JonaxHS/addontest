@@ -1,12 +1,12 @@
 [
   
   {
-    "name": "Torrentio",
+    "name": "Axonim AIO Bridge",
     "type": "json_imdb",
-    "imdbType": "tv",
     "itemType": "info_hash",
-    "infoHashTargetKey": "infoHash",
+    "imdbType": "movie",
     "jsonResultsKey": "streams",
+    "infoHashTargetKey": "infoHash",
     "torrentNameTargetKey": "title",
     "sizeAttr": "behaviorHints.videoSize",
     "searchPattern": {
@@ -28,6 +28,21 @@
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
     },
-    "url": "https://fotos.axonim.lat/stream/%searchPattern.json"
+    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
+  },
+  {
+    "name": "Axonim AIO Bridge",
+    "type": "json_imdb",
+    "itemType": "info_hash",
+    "imdbType": "tv",
+    "jsonResultsKey": "streams",
+    "infoHashTargetKey": "infoHash",
+    "torrentNameTargetKey": "title",
+    "sizeAttr": "size",
+    "searchPattern": {
+      "movie": "movie/%imdbId",
+      "tv": "series/%imdbId:%season:%episode"
+    },
+    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
   }
 ]

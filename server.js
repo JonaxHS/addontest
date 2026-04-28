@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,31 +16,94 @@ const LATINO_MARKERS = (process.env.LATINO_MARKERS || "latino,lat,castellano,esp
   .map((item) => item.trim())
   .filter(Boolean);
 
-// In-memory store for generated configurations
-const CONFIG_FILE = "./configs.json";
+// In-memory store for generated configurations (ephemeral, no accounts/persistence)
+// Storage paths
+const DATA_DIR = process.env.DATA_DIR || './data';
+const CONFIG_FILE = join(DATA_DIR, 'configs.json');
+
+// In-memory store for generated configurations. Each entry: id -> { config, meta }
+let configStore = new Map();
+
+// Metrics for instances
+const metrics = {
+  totalCreated: 0,
+  // map of configId => { createdAt: number, lastAccess: number|null }
+  instances: new Map()
+};
+
+function ensureDataDir() {
+  try {
+    if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {
+    console.error('Failed to create data dir', DATA_DIR, e);
+  }
+}
+
+function saveConfigs() {
+  try {
+    ensureDataDir();
+    const entries = [];
+    for (const [id, entry] of configStore.entries()) {
+      entries.push([id, entry.config, entry.meta || { createdAt: Date.now(), lastAccess: null }]);
+    }
+    const payload = { configs: entries, metrics: { totalCreated: metrics.totalCreated } };
+    writeFileSync(CONFIG_FILE, JSON.stringify(payload, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving configs:', err);
+  }
+}
 
 function loadConfigs() {
-  if (existsSync(CONFIG_FILE)) {
-    try {
-      const data = readFileSync(CONFIG_FILE, "utf8");
-      return new Map(JSON.parse(data));
-    } catch {
-      return new Map();
-    }
-  }
-  return new Map();
-}
-
-function saveConfigs(map) {
   try {
-    const data = JSON.stringify(Array.from(map.entries()));
-    writeFileSync(CONFIG_FILE, data, "utf8");
-  } catch (error) {
-    console.error("Error saving configs:", error);
+    if (!existsSync(CONFIG_FILE)) return;
+    const raw = readFileSync(CONFIG_FILE, 'utf8');
+    const parsed = JSON.parse(raw || '{}');
+    const entries = Array.isArray(parsed.configs) ? parsed.configs : [];
+    for (const item of entries) {
+      const [id, config, meta] = item;
+      configStore.set(id, { config, meta: meta || { createdAt: Date.now(), lastAccess: null } });
+      metrics.instances.set(id, { createdAt: (meta && meta.createdAt) || Date.now(), lastAccess: (meta && meta.lastAccess) || null });
+    }
+    metrics.totalCreated = (parsed.metrics && parsed.metrics.totalCreated) || entries.length;
+  } catch (err) {
+    console.error('Failed to load configs:', err);
   }
 }
 
-let configStore = loadConfigs();
+function markInstanceCreated(id) {
+  const now = Date.now();
+  metrics.totalCreated += 1;
+  metrics.instances.set(id, { createdAt: now, lastAccess: null });
+  // Ensure meta exists on stored config
+  const entry = configStore.get(id);
+  if (entry) entry.meta = { createdAt: now, lastAccess: null };
+  saveConfigs();
+}
+
+function markInstanceAccessed(id) {
+  const now = Date.now();
+  const entry = metrics.instances.get(id);
+  if (entry) entry.lastAccess = now;
+  const stored = configStore.get(id);
+  if (stored) {
+    stored.meta = stored.meta || { createdAt: now, lastAccess: now };
+    stored.meta.lastAccess = now;
+  }
+  saveConfigs();
+}
+
+function countActiveLastHour() {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  let count = 0;
+  for (const [, entry] of metrics.instances.entries()) {
+    const last = entry.lastAccess || entry.createdAt;
+    if (last >= cutoff) count += 1;
+  }
+  return count;
+}
+
+// Load persisted configs at startup (if any)
+loadConfigs();
 
 // Load HTML from config-ui.html file
 function getConfigHtml() {
@@ -352,28 +415,18 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Get specific configuration info
+  // Account/config retrieval disabled: we do not create persistent accounts.
   if (pathname.startsWith("/api/config/") && method === "GET") {
-    const configId = pathname.slice("/api/config/".length);
-    const config = configStore.get(configId);
-    if (!config) {
-      sendJson(res, 404, { error: "Configuration not found" });
-      return;
-    }
-    sendJson(res, 200, { id: configId, config });
+    sendJson(res, 403, { error: "Account retrieval is disabled. This service does not create persistent accounts." });
     return;
   }
 
-  // List all configurations
+  // Metrics endpoint: total created and active in last hour
   if (pathname === "/api/configs" && method === "GET") {
-    const configs = Array.from(configStore.entries()).map(([id, config]) => ({
-      id,
-      aioBase: config.aioBase,
-      preferLatino: config.preferLatino,
-      latinoOnly: config.latinoOnly,
-      maxStreams: config.maxStreams
-    }));
-    sendJson(res, 200, { configs, total: configs.length });
+    sendJson(res, 200, {
+      totalCreated: metrics.totalCreated,
+      activeLastHour: countActiveLastHour()
+    });
     return;
   }
 
@@ -437,8 +490,9 @@ const server = createServer(async (req, res) => {
           latinoMarkers: markerList
         };
 
-        configStore.set(configId, config);
-        saveConfigs(configStore);
+        // Store config in-memory with meta and persist
+        configStore.set(configId, { config, meta: { createdAt: Date.now(), lastAccess: null } });
+        markInstanceCreated(configId);
 
         let baseUrl;
         if (serverUrl && /^https?:\/\//i.test(serverUrl)) {
@@ -506,13 +560,14 @@ const server = createServer(async (req, res) => {
     const match = pathname.match(/^\/config\/([^/]+)\.json$/);
     if (match) {
       const [, configId] = match;
-      const config = configStore.get(configId);
+      const entry = configStore.get(configId);
 
-      if (!config) {
+      if (!entry) {
         sendJson(res, 404, { error: "Configuration not found" });
         return;
       }
 
+      const config = entry.config;
       const baseUrl = getRequestBaseUrl(req);
       const customUrl = `${baseUrl}/custom/${configId}/stream`;
 
@@ -559,13 +614,14 @@ const server = createServer(async (req, res) => {
     const match = pathname.match(/^\/custom\/([^/]+)\/stream\/(.+)(\?debug=1)?$/);
     if (match) {
       const [, configId, streamPath] = match;
-      const config = configStore.get(configId);
+      const entry = configStore.get(configId);
 
-      if (!config) {
+      if (!entry) {
         sendJson(res, 404, { error: "Configuration not found" });
         return;
       }
 
+      const config = entry.config;
       const upstreamUrl = `${config.aioBase}/${streamPath}.json`;
       sendJson(res, 200, {
         configId,
@@ -580,12 +636,12 @@ const server = createServer(async (req, res) => {
 
   // Custom stream endpoint: /custom/:configId/stream/*
   if (pathname.startsWith("/custom/") && pathname.includes("/stream/")) {
-    const match = pathname.match(/^\/custom\/([^/]+)\/stream\/(.+)$/);
-    if (match) {
+      const match = pathname.match(/^\/custom\/([^/]+)\/stream\/(.+)$/);
+      if (match) {
       const [, configId, streamPath] = match;
-      const config = configStore.get(configId);
+      const entry = configStore.get(configId);
 
-      if (!config) {
+      if (!entry) {
         sendJson(res, 404, { 
           error: "Configuration not found",
           configId,
@@ -595,7 +651,9 @@ const server = createServer(async (req, res) => {
       }
 
       try {
-        await handleStream(req, res, `/stream/${streamPath}`, config);
+        // Mark instance as accessed for metrics
+        markInstanceAccessed(configId);
+        await handleStream(req, res, `/stream/${streamPath}`, entry.config);
       } catch (error) {
         sendJson(res, 500, { error: "Handler error", detail: String(error) });
       }

@@ -293,82 +293,119 @@
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <h1>🎬 Generador de Addon</h1>
-    <p class="subtitle">AIOStreams → DebridStream Bridge Personalizado</p>
+  <body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">AS</div>
+      <button class="icon-btn" title="Home">🏠</button>
+      <button class="icon-btn" title="Guardar">💾</button>
+      <button class="icon-btn" title="Ajustes">⚙️</button>
+      <div style="flex:1"></div>
+      <button class="icon-btn" title="Ayuda">❓</button>
+    </aside>
 
-    <div class="error" id="error"></div>
-
-    <form id="configForm">
-      <div class="form-group">
-        <label for="aioLink">Link de AIOStreams</label>
-        <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/manifest.json" required></textarea>
-        <div class="help-text">Pega tu link completo de AIOStreams (puede terminar en /manifest.json o /stream, se convertirá automáticamente)</div>
-        <button type="button" class="btn-validate" onclick="testAioLink()" id="validateBtn">Validar Link</button>
-        <div class="validation-status" id="validationStatus" style="display: none;"></div>
+    <main class="main">
+      <div class="header">
+        <div class="title-group">
+          <h1>Instalar Addon</h1>
+          <div class="subtitle">Configura e instala tu addon personalizado</div>
+        </div>
+        <div>
+          <button class="btn btn-ghost" onclick="location.reload()">← Previous</button>
+          <button class="btn btn-primary" style="margin-left:8px">Next →</button>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label>Preferencias de Idioma</label>
-        <div class="checkbox-group">
-          <div class="checkbox-item">
-            <input type="checkbox" id="preferLatino" checked>
-            <label for="preferLatino">Preferir Latino</label>
-          </div>
-          <div class="checkbox-item">
-            <input type="checkbox" id="latinoOnly">
-            <label for="latinoOnly">Solo Latino</label>
+      <div class="cards">
+        <div class="card">
+          <div style="font-weight:700;margin-bottom:8px">Guardar configuración</div>
+          <div class="save-row">
+            <div>
+              <div class="help-text">Guarda tu configuración en tu cuenta haciendo clic en Guardar abajo.</div>
+              <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+                <div class="uuid-box" id="uuidPreview">Tu UUID: 35099f5e-fd8c-488f-a701-2bd66af59ead</div>
+                <button class="btn btn-ghost">Save</button>
+              </div>
+            </div>
+            <div style="color:var(--muted);font-size:13px;">Show changes before saving <input type="checkbox" style="margin-left:8px"></div>
           </div>
         </div>
-        <div class="help-text">Marca "Solo Latino" si deseas excluir streams que no sean en español</div>
-      </div>
 
-      <div class="form-group">
-        <label for="markers">Marcadores de Latino</label>
-        <input type="text" id="markers" value="latino,lat,castellano,espanol,español" required>
-        <div class="help-text">Palabras clave separadas por comas para detectar streams en español</div>
-      </div>
+        <div class="card">
+          <div class="help-text" style="margin-bottom:12px">Instalación - Usa el Manifest URL para instalar en Stremio u otros clientes compatibles</div>
 
-      <div class="form-group">
-        <label for="maxStreams">Máximo de Resultados</label>
-        <input type="number" id="maxStreams" value="8" min="0">
-        <div class="help-text">Limite de streams a mostrar (0 = sin límite)</div>
-      </div>
+          <form id="configForm">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start">
+              <div>
+                <label for="aioLink">Link de AIOStreams</label>
+                <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/manifest.json" required></textarea>
+                <div class="help-text">Pega tu link completo de AIOStreams (puede terminar en /manifest.json o /stream, se convertirá automáticamente)</div>
+                <div id="validationStatus" style="margin-top:8px;display:none;color:var(--muted)"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button type="button" class="btn btn-ghost" onclick="testAioLink()" id="validateBtn">Validar Link</button>
+                <div style="flex:1"></div>
+                <div style="font-size:12px;color:var(--muted)">Direct Manifest URL</div>
+                <div class="result-box">https://aiostream.axonim.lat/stremio/35099f5e-.../stream</div>
+              </div>
+            </div>
 
-      <div class="button-group">
-        <button type="submit" class="btn-generate" id="generateBtn" disabled>Generar Addon</button>
-        <button type="reset" class="btn-reset" onclick="resetValidation()">Limpiar</button>
-      </div>
-    </form>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+              <div>
+                <label>Preferencias de Idioma</label>
+                <div class="checkbox-group">
+                  <label style="font-weight:500"><input type="checkbox" id="preferLatino" checked style="margin-right:8px">Preferir Latino</label>
+                  <label style="font-weight:500"><input type="checkbox" id="latinoOnly" style="margin-right:8px">Solo Latino</label>
+                </div>
+                <div class="help-text">Marca "Solo Latino" si deseas excluir streams que no sean en español</div>
+              </div>
 
-    <div class="result-section" id="resultSection">
-      <div class="result-title">✅ Tu Addon Generado</div>
+              <div>
+                <label for="maxStreams">Máximo de Resultados</label>
+                <input type="number" id="maxStreams" value="8" min="0">
+                <div class="help-text">Limite de streams a mostrar (0 = sin límite)</div>
+              </div>
+            </div>
 
-      <div class="result-item">
-        <div class="result-label">ID del Addon:</div>
-        <div class="result-box" id="addonId"></div>
-        <button class="copy-btn" onclick="copyToClipboard('addonId')">Copiar ID</button>
-      </div>
+            <div style="margin-top:12px">
+              <label for="markers">Marcadores de Latino</label>
+              <input type="text" id="markers" value="latino,lat,castellano,espanol,español" required>
+              <div class="help-text">Palabras clave separadas por comas para detectar streams en español</div>
+            </div>
 
-      <div class="result-item">
-        <div class="result-label">URL para DebridStream (configUrl):</div>
-        <div class="result-box" id="configUrl"></div>
-        <button class="copy-btn" onclick="copyToClipboard('configUrl')">Copiar URL</button>
-      </div>
+            <div class="button-group" style="margin-top:18px">
+              <button type="submit" class="btn-primary" id="generateBtn" disabled>Generar Addon</button>
+              <button type="reset" class="btn-ghost" onclick="resetValidation()">Limpiar</button>
+            </div>
+          </form>
+        </div>
 
-      <div class="result-item">
-        <div class="result-label">Configuración JSON para DebridStream:</div>
-        <div class="result-box" id="configJson" style="max-height: 300px;"></div>
-        <button class="copy-btn" onclick="copyToClipboard('configJson')">Copiar JSON</button>
-        <button class="copy-btn" onclick="downloadConfig()">Descargar</button>
-      </div>
+        <div class="card" id="resultSection" style="display:none">
+          <div class="result-title">✅ Tu Addon Generado</div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start">
+            <div>
+              <div style="font-weight:600;color:var(--muted);margin-bottom:6px">ID del Addon:</div>
+              <div class="result-box" id="addonId"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="btn btn-ghost" onclick="copyToClipboard('addonId')">Copiar ID</button>
+            </div>
+          </div>
 
-      <div class="qr-code">
-        <div class="result-label">Código QR de la URL:</div>
-        <div id="qrCode" class="result-box" style="text-align: center;">QR deshabilitado para evitar dependencias externas. Copia la URL de DebridStream y ábrela en tu lector QR favorito.</div>
+          <div style="margin-top:12px">
+            <div style="font-weight:600;color:var(--muted);margin-bottom:6px">URL para DebridStream (configUrl):</div>
+            <div class="result-box" id="configUrl"></div>
+            <div style="margin-top:8px"><button class="btn btn-ghost" onclick="copyToClipboard('configUrl')">Copiar URL</button></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="font-weight:600;color:var(--muted);margin-bottom:6px">Configuración JSON para DebridStream:</div>
+            <div class="result-box" id="configJson" style="max-height:260px;overflow:auto"></div>
+            <div style="margin-top:8px;display:flex;gap:8px"><button class="btn btn-ghost" onclick="copyToClipboard('configJson')">Copiar JSON</button><button class="btn btn-ghost" onclick="downloadConfig()">Descargar</button></div>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   </div>
 
   <script>
