@@ -137,6 +137,12 @@
       overflow: auto;
     }
 
+    .sidebar-help-title {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
     .sidebar-help-head {
       display: flex;
       justify-content: space-between;
@@ -162,12 +168,6 @@
     .sidebar-help-close:hover {
       background: rgba(255, 255, 255, 0.10);
       border-color: var(--border-strong);
-    }
-
-    .sidebar-help h3 {
-      margin: 0;
-      font-size: 15px;
-      letter-spacing: -0.02em;
     }
 
     .sidebar-help p {
@@ -851,16 +851,12 @@
     <div class="sidebar-help" id="helpPanel" aria-live="polite" role="dialog" aria-modal="true" aria-label="Ayuda de AIOStreams">
       <div class="sidebar-help-head">
         <div>
-          <h3>AIOStreams debe enviar el InfoHash</h3>
-          <p>En <strong>name template</strong> y <strong>description template</strong> agrega exactamente esta línea para que el addon funcione con el identificador del stream.</p>
+          <h3 class="sidebar-help-title">Pega exactamente este formatter en <strong>name template</strong> y <strong>description template</strong></h3>
         </div>
         <button class="sidebar-help-close" type="button" id="helpCloseButton" aria-label="Cerrar ayuda">×</button>
       </div>
-      <pre>InfoHash:   {stream.infoHash}</pre>
-      <p>Ejemplo del formatter:</p>
       <pre>{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
 {stream.title::exists["🎬 {stream.title}"||"🎬 {stream.filename}{tools.newLine} "]}{stream.year::exists[" ({stream.year})"||""]}{stream.title::exists[""||"{tools.removeLine}"]} {stream.filename::~extended["⏩ Extended Cut "||""]}{stream.filename::~theatrical["🎭 Theatrical Cut "||""]}{stream.filename::~director["🎬 Director's Cut "||""]}{stream.filename::~dc["🎬 Director's Cut "||""]}{stream.filename::~alternate["🔀 Alternate Edition "||""]}{stream.filename::~complete["📦 Complete Edition "||""]}{stream.filename::~special["🎁 Special Edition "||""]}{stream.filename::~anniversary["🎉 Anniversary Edition "||""]}{stream.filename::~imax["🏟️ IMAX Edition "||""]}{stream.filename::~collectors["🎖️ Collector's Edition "||""]}{stream.filename::~unrated["🚫 Unrated Cut "||""]}{stream.filename::~uncensored["🔞 Uncensored "||""]}{stream.filename::~preview["👀 Preview Cut "||""]}{stream.filename::~festival["🏆 Festival Cut "||""]} {stream.season::>=0["📁 S"||""]}{stream.season::<=9["0"||""]}{stream.season::>0["{stream.season}"||""]}{stream.episode::>=0[" - E"||""]}{stream.episode::<=9["0"||""]}{stream.episode::>0["{stream.episode}"||""]} {stream.languages::exists["🌎 {stream.languages::join(' | ')}"||""]} {stream.duration::>0["⏱️ {stream.duration::time} "||""]}{stream.quality::~REMUX["📀 High Quality"||""]}{stream.quality::=BluRay["💿 High Quality"||""]} {stream.size::>0["📦 {stream.size::bytes} "||""]}🍿 {addon.name}{stream.type::=Usenet[" 📰"||""]} {stream.message::exists["ℹ️ {stream.message}"]}
-
 InfoHash:   {stream.infoHash}</pre>
     </div>
   </div>
