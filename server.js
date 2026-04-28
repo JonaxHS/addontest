@@ -387,9 +387,15 @@ async function handleStream(req, res, pathname, config) {
         return hasPreferredLatino(item, cfg.searchMarkers);
       });
 
-      // Use matching streams if any found, otherwise show all
+      // Use matching streams if any found, otherwise apply fallback logic
       if (matchingStreams.length > 0) {
         output = matchingStreams;
+      } else if (cfg.fallbackAllLanguages) {
+        // No matching results - use fallback: return all available streams
+        output = converted;
+      } else {
+        // No matching results and no fallback - return empty
+        output = [];
       }
     }
 
@@ -460,7 +466,7 @@ const server = createServer(async (req, res) => {
     req.on("end", () => {
       try {
         const payload = JSON.parse(body);
-        let { serverUrl, aioLink, languages, markers, maxStreams } = payload;
+        let { serverUrl, aioLink, languages, markers, maxStreams, fallbackAllLanguages } = payload;
 
         if (!serverUrl || !aioLink || !markers || !Array.isArray(languages)) {
           sendJson(res, 400, { error: "serverUrl, aioLink, markers, and languages array are required" });
@@ -492,7 +498,8 @@ const server = createServer(async (req, res) => {
           aioBase: aioLink,
           selectedLanguages: languageList,
           maxStreams: parseInt(maxStreams) || 0,
-          searchMarkers: markerList
+          searchMarkers: markerList,
+          fallbackAllLanguages: fallbackAllLanguages === true
         };
 
         // Store config in-memory with meta and persist to its own JSON file

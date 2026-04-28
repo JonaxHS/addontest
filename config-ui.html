@@ -627,6 +627,12 @@
                   </label>
                   <div class="hint" style="margin-bottom: 12px;">Activa esta opción para obtener todos los streams tal como los envía AIOStreams, sin filtrado local de idiomas.</div>
                   
+                  <label class="check" style="margin-bottom: 12px;">
+                    <input type="checkbox" id="fallbackAllLanguages"> 
+                    <span>Mostrar todos si no hay resultados</span>
+                  </label>
+                  <div class="hint" style="margin-bottom: 12px;">Si no encuentra streams con los idiomas seleccionados, muestra todos los disponibles.</div>
+                  
                   <label for="languageFilter">Idiomas a Filtrar</label>
                   <select id="languageFilter" class="input" multiple style="min-height: 120px;">
                     <option value="español" selected>Español</option>
@@ -739,9 +745,50 @@
 
     refreshAddonCount();
 
+    // Language to default search markers mapping
+    const languageMarkers = {
+      'español': 'español,lat,castellano,espanol',
+      'latino': 'latino,lat,español',
+      'castellano': 'castellano,español,lat',
+      'inglés': 'english,en,eng,british',
+      'english': 'english,en,eng',
+      'portugués': 'português,pt,portuguese,ptbr',
+      'portuguese': 'portuguese,pt,ptbr',
+      'francés': 'français,fr,french',
+      'french': 'french,fr,français',
+      'italiano': 'italiano,it,italian',
+      'italian': 'italian,it,italiano',
+      'alemán': 'deutsch,de,german',
+      'german': 'german,de,deutsch',
+      'ruso': 'русский,ru,russian',
+      'russian': 'russian,ru,русский',
+      'japonés': '日本語,ja,japanese,jap',
+      'japanese': 'japanese,ja,日本語',
+      'chino': '中文,zh,chinese,mandarin',
+      'chinese': 'chinese,zh,中文,mandarin',
+      'coreano': '한국어,ko,korean',
+      'korean': 'korean,ko,한국어'
+    };
+
+    // Update markers when language selection changes
+    function updateMarkersFromLanguages() {
+      const selectedLanguages = Array.from(languageFilterSelect.selectedOptions).map(opt => opt.value);
+      if (selectedLanguages.length === 0) return;
+      
+      const markersSet = new Set();
+      for (const lang of selectedLanguages) {
+        const markers = languageMarkers[lang] || '';
+        if (markers) {
+          markers.split(',').forEach(m => markersSet.add(m.trim()));
+        }
+      }
+      
+      const markersInput = document.getElementById('markers');
+      markersInput.value = Array.from(markersSet).join(',');
+    }
+
     // Handle direct AIOStreams filtering toggle
     const useAioFilteringCheckbox = document.getElementById('useAioFiltering');
-    const languageFilterSelect = document.getElementById('languageFilter');
     
     useAioFilteringCheckbox.addEventListener('change', (e) => {
       // Disable/enable language filter based on checkbox
@@ -754,6 +801,12 @@
         languageFilterSelect.style.cursor = 'pointer';
       }
     });
+
+    // Update markers when language selection changes
+    languageFilterSelect.addEventListener('change', updateMarkersFromLanguages);
+    
+    // Initialize markers with default languages on page load
+    updateMarkersFromLanguages();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -774,6 +827,7 @@
       
       // Check if using direct AIOStreams filtering
       const useAioFiltering = document.getElementById('useAioFiltering').checked;
+      const fallbackAllLanguages = document.getElementById('fallbackAllLanguages').checked;
       
       // Get selected languages (empty if using AIOStreams filtering directly)
       let selectedLanguages = [];
@@ -809,7 +863,8 @@
             aioLink,
             languages: selectedLanguages,
             markers,
-            maxStreams
+            maxStreams,
+            fallbackAllLanguages
           })
         });
 
