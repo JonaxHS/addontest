@@ -1,0 +1,8 @@
+# Denegar acceso directo a archivos JSON
+<FilesMatch "\.(json)$">
+    Deny from all
+    Order deny,allow
+</FilesMatch>
+
+# Denegar la enumeración de directorios
+Options -Indexes

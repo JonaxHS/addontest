@@ -305,10 +305,9 @@ async function handleStream(req, res, pathname, config) {
   try {
     const cfg = config || {
       aioBase: AIO_BASE,
-      preferLatino: PREFER_LATINO,
-      latinoOnly: LATINO_ONLY,
+      selectedLanguages: LATINO_MARKERS.length > 0 ? ['español', 'latino'] : [],
       maxStreams: MAX_STREAMS,
-      latinoMarkers: LATINO_MARKERS
+      searchMarkers: LATINO_MARKERS
     };
 
     const searchPattern = pathname.slice("/stream/".length, -".json".length);
@@ -382,20 +381,15 @@ async function handleStream(req, res, pathname, config) {
 
     let output = converted;
 
-    if (cfg.preferLatino && converted.length > 0) {
-      const preferred = [];
-      const others = [];
+    // Filter by selected languages/search markers
+    if (cfg.selectedLanguages && cfg.selectedLanguages.length > 0 && cfg.searchMarkers) {
+      const matchingStreams = converted.filter((item) => {
+        return hasPreferredLatino(item, cfg.searchMarkers);
+      });
 
-      for (const item of converted) {
-        if (hasPreferredLatino(item, cfg.latinoMarkers)) preferred.push(item);
-        else others.push(item);
-      }
-
-      if (preferred.length > 0) {
-        output = cfg.latinoOnly ? preferred : [...preferred, ...others];
-      } else {
-        // No preferred Latino streams found — return all streams so users still see content
-        output = converted;
+      // Use matching streams if any found, otherwise show all
+      if (matchingStreams.length > 0) {
+        output = matchingStreams;
       }
     }
 
@@ -466,10 +460,10 @@ const server = createServer(async (req, res) => {
     req.on("end", () => {
       try {
         const payload = JSON.parse(body);
-        let { serverUrl, aioLink, preferLatino, latinoOnly, markers, maxStreams } = payload;
+        let { serverUrl, aioLink, languages, markers, maxStreams } = payload;
 
-        if (!serverUrl || !aioLink || !markers) {
-          sendJson(res, 400, { error: "serverUrl, aioLink and markers are required" });
+        if (!serverUrl || !aioLink || !markers || !languages || !Array.isArray(languages)) {
+          sendJson(res, 400, { error: "serverUrl, aioLink, markers, and languages array are required" });
           return;
         }
 
@@ -492,13 +486,13 @@ const server = createServer(async (req, res) => {
 
         const configId = generateConfigId();
         const markerList = markers.split(",").map((m) => m.trim()).filter(Boolean);
+        const languageList = languages.map((l) => typeof l === 'string' ? l.trim().toLowerCase() : '').filter(Boolean);
 
         const config = {
           aioBase: aioLink,
-          preferLatino: preferLatino !== false,
-          latinoOnly: latinoOnly === true,
+          selectedLanguages: languageList,
           maxStreams: parseInt(maxStreams) || 0,
-          latinoMarkers: markerList
+          searchMarkers: markerList
         };
 
         // Store config in-memory with meta and persist to its own JSON file

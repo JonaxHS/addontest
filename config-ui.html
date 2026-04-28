@@ -562,8 +562,6 @@
     <aside class="sidebar" aria-label="Navegación">
       <div class="brand">AS</div>
       <button class="nav-button" title="Inicio" type="button">🏠</button>
-      <button class="nav-button" title="Guardar" type="button">💾</button>
-      <button class="nav-button" title="Ajustes" type="button">⚙️</button>
       <div class="nav-spacer"></div>
       <button class="nav-button" title="Ayuda" type="button">❓</button>
     </aside>
@@ -573,7 +571,7 @@
         <div>
           <div class="eyebrow">Addon installer</div>
           <h1>Instalar Addon</h1>
-          <p class="subtitle">Configura y genera tu addon personalizado con una interfaz más limpia, oscura y enfocada en la lectura rápida.</p>
+          <p class="subtitle">Configura y genera tu addon personalizado para DebridStream.</p>
         </div>
         <div class="hero-actions">
           <button class="ghost" type="button" onclick="location.reload()">← Previous</button>
@@ -623,12 +621,31 @@
 
               <div class="mini-grid">
                 <div class="mini-panel">
-                  <label>Preferencias de Idioma</label>
-                  <div class="checkbox-group" style="margin-top:10px;">
-                    <label class="check"><input type="checkbox" id="preferLatino" checked> <span>Preferir Latino</span></label>
-                    <label class="check"><input type="checkbox" id="latinoOnly"> <span>Solo Latino</span></label>
-                  </div>
-                  <div class="hint" style="margin-top:10px;">Marca “Solo Latino” si deseas excluir streams que no sean en español.</div>
+                  <label for="languageFilter">Idiomas a Filtrar</label>
+                  <select id="languageFilter" class="input" multiple style="min-height: 120px;">
+                    <option value="español" selected>Español</option>
+                    <option value="latino" selected>Latino</option>
+                    <option value="castellano" selected>Castellano</option>
+                    <option value="inglés">Inglés</option>
+                    <option value="english">English</option>
+                    <option value="portugués">Portugués</option>
+                    <option value="portuguese">Portuguese</option>
+                    <option value="francés">Francés</option>
+                    <option value="french">French</option>
+                    <option value="italiano">Italiano</option>
+                    <option value="italian">Italian</option>
+                    <option value="alemán">Alemán</option>
+                    <option value="german">German</option>
+                    <option value="ruso">Ruso</option>
+                    <option value="russian">Russian</option>
+                    <option value="japonés">Japonés</option>
+                    <option value="japanese">Japanese</option>
+                    <option value="chino">Chino</option>
+                    <option value="chinese">Chinese</option>
+                    <option value="coreano">Coreano</option>
+                    <option value="korean">Korean</option>
+                  </select>
+                  <div class="hint" style="margin-top:10px;">Selecciona uno o más idiomas. Usa Ctrl+Click (Cmd+Click) para múltiples selecciones. Solo se mostrarán streams en los idiomas elegidos.</div>
                 </div>
 
                 <div class="mini-panel">
@@ -639,9 +656,9 @@
               </div>
 
               <div class="field">
-                <label for="markers">Marcadores de Latino</label>
-                <input type="text" id="markers" class="input" value="latino,lat,castellano,espanol,español" required>
-                <div class="hint">Palabras clave separadas por comas para detectar streams en español.</div>
+                <label for="markers">Palabras Clave de Búsqueda</label>
+                <input type="text" id="markers" class="input" value="español,latino,castellano,lat" required>
+                <div class="hint">Palabras clave separadas por comas que identifican los streams en los idiomas seleccionados. Se usan para refinar la búsqueda.</div>
               </div>
 
               <div class="button-group">
@@ -732,8 +749,11 @@
       const finalServerUrl = serverUrlParam || serverUrl;
 
       let aioLink = document.getElementById('aioLink').value.trim();
-      const preferLatino = document.getElementById('preferLatino').checked;
-      const latinoOnly = document.getElementById('latinoOnly').checked;
+      
+      // Get selected languages
+      const languageSelect = document.getElementById('languageFilter');
+      const selectedLanguages = Array.from(languageSelect.selectedOptions).map(opt => opt.value);
+      
       const markers = document.getElementById('markers').value.trim();
       const maxStreams = parseInt(document.getElementById('maxStreams').value) || 0;
 
@@ -742,8 +762,13 @@
         return;
       }
 
+      if (selectedLanguages.length === 0) {
+        showError('Por favor selecciona al menos un idioma');
+        return;
+      }
+
       if (!markers) {
-        showError('Debes especificar al menos un marcador de idioma');
+        showError('Debes especificar al menos una palabra clave');
         return;
       }
 
@@ -754,8 +779,7 @@
           body: JSON.stringify({
             serverUrl: finalServerUrl,
             aioLink,
-            preferLatino,
-            latinoOnly,
+            languages: selectedLanguages,
             markers,
             maxStreams
           })
