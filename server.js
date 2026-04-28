@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,55 +16,68 @@ const LATINO_MARKERS = (process.env.LATINO_MARKERS || "latino,lat,castellano,esp
   .map((item) => item.trim())
   .filter(Boolean);
 
-// In-memory store for generated configurations (ephemeral, no accounts/persistence)
 // Storage paths
 const DATA_DIR = process.env.DATA_DIR || './data';
-const CONFIG_FILE = join(DATA_DIR, 'configs.json');
+const ADDONS_DIR = join(DATA_DIR, 'addons');
+const LEGACY_CONFIG_FILE = join(DATA_DIR, 'configs.json');
 
 // In-memory store for generated configurations. Each entry: id -> { config, meta }
 let configStore = new Map();
 
-// Metrics for instances
-const metrics = {
-  totalCreated: 0,
-  // map of configId => { createdAt: number, lastAccess: number|null }
-  instances: new Map()
-};
-
 function ensureDataDir() {
   try {
     if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+    if (!existsSync(ADDONS_DIR)) mkdirSync(ADDONS_DIR, { recursive: true });
   } catch (e) {
     console.error('Failed to create data dir', DATA_DIR, e);
   }
 }
 
-function saveConfigs() {
+function getAddonFilePath(id) {
+  return join(ADDONS_DIR, `${id}.json`);
+}
+
+function saveAddonFile(id, entry) {
   try {
     ensureDataDir();
-    const entries = [];
-    for (const [id, entry] of configStore.entries()) {
-      entries.push([id, entry.config, entry.meta || { createdAt: Date.now(), lastAccess: null }]);
-    }
-    const payload = { configs: entries, metrics: { totalCreated: metrics.totalCreated } };
-    writeFileSync(CONFIG_FILE, JSON.stringify(payload, null, 2), 'utf8');
+    const payload = {
+      id,
+      config: entry.config,
+      meta: entry.meta || { createdAt: Date.now(), lastAccess: null }
+    };
+    writeFileSync(getAddonFilePath(id), JSON.stringify(payload, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error saving configs:', err);
+    console.error('Error saving addon file:', err);
   }
 }
 
 function loadConfigs() {
   try {
-    if (!existsSync(CONFIG_FILE)) return;
-    const raw = readFileSync(CONFIG_FILE, 'utf8');
-    const parsed = JSON.parse(raw || '{}');
-    const entries = Array.isArray(parsed.configs) ? parsed.configs : [];
-    for (const item of entries) {
-      const [id, config, meta] = item;
-      configStore.set(id, { config, meta: meta || { createdAt: Date.now(), lastAccess: null } });
-      metrics.instances.set(id, { createdAt: (meta && meta.createdAt) || Date.now(), lastAccess: (meta && meta.lastAccess) || null });
+    ensureDataDir();
+    const files = readdirSync(ADDONS_DIR).filter((file) => file.endsWith('.json'));
+    for (const file of files) {
+      const raw = readFileSync(join(ADDONS_DIR, file), 'utf8');
+      const parsed = JSON.parse(raw || '{}');
+      const id = typeof parsed.id === 'string' && parsed.id ? parsed.id : file.replace(/\.json$/i, '');
+      const config = parsed.config || null;
+      if (!config) continue;
+
+      const meta = parsed.meta || { createdAt: Date.now(), lastAccess: null };
+      configStore.set(id, { config, meta });
     }
-    metrics.totalCreated = (parsed.metrics && parsed.metrics.totalCreated) || entries.length;
+
+    if (existsSync(LEGACY_CONFIG_FILE)) {
+      const raw = readFileSync(LEGACY_CONFIG_FILE, 'utf8');
+      const parsed = JSON.parse(raw || '{}');
+      const entries = Array.isArray(parsed.configs) ? parsed.configs : [];
+      for (const item of entries) {
+        const [id, config, meta] = item;
+        if (!id || !config || configStore.has(id)) continue;
+        const entry = { config, meta: meta || { createdAt: Date.now(), lastAccess: null } };
+        configStore.set(id, entry);
+        saveAddonFile(id, entry);
+      }
+    }
   } catch (err) {
     console.error('Failed to load configs:', err);
   }
@@ -72,34 +85,33 @@ function loadConfigs() {
 
 function markInstanceCreated(id) {
   const now = Date.now();
-  metrics.totalCreated += 1;
-  metrics.instances.set(id, { createdAt: now, lastAccess: null });
   // Ensure meta exists on stored config
   const entry = configStore.get(id);
-  if (entry) entry.meta = { createdAt: now, lastAccess: null };
-  saveConfigs();
+  if (entry) {
+    entry.meta = { createdAt: now, lastAccess: null };
+    saveAddonFile(id, entry);
+  }
 }
 
 function markInstanceAccessed(id) {
   const now = Date.now();
-  const entry = metrics.instances.get(id);
-  if (entry) entry.lastAccess = now;
   const stored = configStore.get(id);
   if (stored) {
     stored.meta = stored.meta || { createdAt: now, lastAccess: now };
     stored.meta.lastAccess = now;
+    saveAddonFile(id, stored);
   }
-  saveConfigs();
 }
 
-function countActiveLastHour() {
-  const cutoff = Date.now() - 60 * 60 * 1000;
-  let count = 0;
-  for (const [, entry] of metrics.instances.entries()) {
-    const last = entry.lastAccess || entry.createdAt;
-    if (last >= cutoff) count += 1;
+function countAddonJsonFiles() {
+  try {
+    ensureDataDir();
+    if (!existsSync(ADDONS_DIR)) return 0;
+    return readdirSync(ADDONS_DIR).filter((file) => file.endsWith('.json')).length;
+  } catch (err) {
+    console.error('Failed to count addon json files:', err);
+    return 0;
   }
-  return count;
 }
 
 // Load persisted configs at startup (if any)
@@ -411,7 +423,7 @@ const server = createServer(async (req, res) => {
 
   // Health endpoint
   if (pathname === "/health" && method === "GET") {
-    sendJson(res, 200, { ok: true, service: "aiostreams-debrid-bridge", configs: configStore.size });
+    sendJson(res, 200, { ok: true, service: "aiostreams-debrid-bridge", addons: countAddonJsonFiles() });
     return;
   }
 
@@ -421,11 +433,10 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Metrics endpoint: total created and active in last hour
+  // Metrics endpoint: count addon JSON files
   if (pathname === "/api/configs" && method === "GET") {
     sendJson(res, 200, {
-      totalCreated: metrics.totalCreated,
-      activeLastHour: countActiveLastHour()
+      addonCount: countAddonJsonFiles()
     });
     return;
   }
@@ -490,7 +501,7 @@ const server = createServer(async (req, res) => {
           latinoMarkers: markerList
         };
 
-        // Store config in-memory with meta and persist
+        // Store config in-memory with meta and persist to its own JSON file
         configStore.set(configId, { config, meta: { createdAt: Date.now(), lastAccess: null } });
         markInstanceCreated(configId);
 

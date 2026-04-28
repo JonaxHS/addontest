@@ -583,16 +583,9 @@
 
       <section class="metrics" aria-label="Resumen">
         <div class="mini-panel">
-          <span class="result-label">Estado</span>
-          <strong>Listo</strong>
-        </div>
-        <div class="mini-panel">
-          <span class="result-label">Modo</span>
-          <strong>Dark UI</strong>
-        </div>
-        <div class="mini-panel">
-          <span class="result-label">Salida</span>
-          <strong>DebridStream</strong>
+          <span class="result-label">Addons generados</span>
+          <strong id="addonCount">0</strong>
+          <div class="hint" style="margin-top:8px;">Se cuenta cada archivo JSON creado dentro de <strong>data/addons</strong>.</div>
         </div>
       </section>
 
@@ -600,29 +593,6 @@
 
       <section class="grid">
         <div class="stack">
-          <article class="section-card">
-            <div class="section-head">
-              <div>
-                <h2 class="section-title">Guardar configuración</h2>
-                <p class="section-copy">Guarda tu configuración para reutilizarla más tarde sin perderla entre reinicios del contenedor.</p>
-              </div>
-            </div>
-
-            <div class="mini-grid">
-              <div class="mini-panel">
-                <span class="result-label">Tu UUID</span>
-                <strong id="uuidPreview" style="font-size:15px; line-height:1.5; word-break: break-all;">35099f5e-fd8c-488f-a701-2bd66af59ead</strong>
-              </div>
-              <div class="mini-panel" style="display:grid; gap:12px; align-content:start;">
-                <label class="check" style="justify-content:space-between;">
-                  <span>Show changes before saving</span>
-                  <input type="checkbox" style="accent-color: var(--accent);">
-                </label>
-                <button class="secondary" type="button" style="width:100%;">Save</button>
-              </div>
-            </div>
-          </article>
-
           <article class="section-card">
             <div class="section-head">
               <div>
@@ -730,7 +700,21 @@
     const form = document.getElementById('configForm');
     const resultSection = document.getElementById('resultSection');
     const errorBox = document.getElementById('error');
+    const addonCountEl = document.getElementById('addonCount');
     let linkValidated = false;
+
+    async function refreshAddonCount() {
+      try {
+        const response = await fetch('/api/configs', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        addonCountEl.textContent = String(data.addonCount ?? 0);
+      } catch {
+        addonCountEl.textContent = '0';
+      }
+    }
+
+    refreshAddonCount();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -796,6 +780,7 @@
 
       const preview = document.getElementById('directUrlPreview');
       if (preview) preview.innerText = data.configUrl;
+      refreshAddonCount();
 
       resultSection.classList.add('show');
       resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
