@@ -855,9 +855,12 @@
         </div>
         <button class="sidebar-help-close" type="button" id="helpCloseButton" aria-label="Cerrar ayuda">×</button>
       </div>
-      <pre>{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
+      <pre id="helpFormatter">{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
 {stream.title::exists["🎬 {stream.title}"||"🎬 {stream.filename}{tools.newLine} "]}{stream.year::exists[" ({stream.year})"||""]}{stream.title::exists[""||"{tools.removeLine}"]} {stream.filename::~extended["⏩ Extended Cut "||""]}{stream.filename::~theatrical["🎭 Theatrical Cut "||""]}{stream.filename::~director["🎬 Director's Cut "||""]}{stream.filename::~dc["🎬 Director's Cut "||""]}{stream.filename::~alternate["🔀 Alternate Edition "||""]}{stream.filename::~complete["📦 Complete Edition "||""]}{stream.filename::~special["🎁 Special Edition "||""]}{stream.filename::~anniversary["🎉 Anniversary Edition "||""]}{stream.filename::~imax["🏟️ IMAX Edition "||""]}{stream.filename::~collectors["🎖️ Collector's Edition "||""]}{stream.filename::~unrated["🚫 Unrated Cut "||""]}{stream.filename::~uncensored["🔞 Uncensored "||""]}{stream.filename::~preview["👀 Preview Cut "||""]}{stream.filename::~festival["🏆 Festival Cut "||""]} {stream.season::>=0["📁 S"||""]}{stream.season::<=9["0"||""]}{stream.season::>0["{stream.season}"||""]}{stream.episode::>=0[" - E"||""]}{stream.episode::<=9["0"||""]}{stream.episode::>0["{stream.episode}"||""]} {stream.languages::exists["🌎 {stream.languages::join(' | ')}"||""]} {stream.duration::>0["⏱️ {stream.duration::time} "||""]}{stream.quality::~REMUX["📀 High Quality"||""]}{stream.quality::=BluRay["💿 High Quality"||""]} {stream.size::>0["📦 {stream.size::bytes} "||""]}🍿 {addon.name}{stream.type::=Usenet[" 📰"||""]} {stream.message::exists["ℹ️ {stream.message}"]}
 InfoHash:   {stream.infoHash}</pre>
+      <div class="result-actions">
+        <button class="copy-btn" type="button" onclick="copyHelpFormatter(this)">Copiar formatter</button>
+      </div>
     </div>
   </div>
 
@@ -1234,6 +1237,21 @@ InfoHash:   {stream.infoHash}</pre>
       linkValidated = false;
       document.getElementById('generateBtn').disabled = true;
       document.getElementById('validationStatus').style.display = 'none';
+    }
+
+    function copyHelpFormatter(buttonEl) {
+      const formatter = document.getElementById('helpFormatter');
+      const text = formatter ? formatter.innerText : '';
+      navigator.clipboard.writeText(text).then(() => {
+        if (!buttonEl) return;
+        const originalText = buttonEl.innerText;
+        buttonEl.innerText = '✓ Copiado';
+        buttonEl.classList.add('copied');
+        setTimeout(() => {
+          buttonEl.innerText = originalText;
+          buttonEl.classList.remove('copied');
+        }, 1800);
+      });
     }
 
     helpButton.addEventListener('click', () => {
