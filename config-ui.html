@@ -605,6 +605,30 @@
       border-color: rgba(30, 212, 155, 0.38);
     }
 
+    .alert-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .alert-copy-btn {
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .alert-copy-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.10);
+      border-color: var(--border-strong);
+    }
+
     .qr-note {
       display: grid;
       gap: 10px;
@@ -1206,17 +1230,21 @@ InfoHash:   {stream.infoHash}</pre>
           if (streamsWithHash === 0) {
             updateValidationStatus('invalid', 'No hay infoHash en los streams');
             showError('⚠️  Link válido pero NO ENCONTRÓ infoHash en los ' + streamCount + ' streams.\n\n' +
-                  'El formato debe incluir infoHash en:\n' +
-                  '• URL del stream (btih:HASH o /resolve/.../HASH)\n' +
-                  '• Campo description\n' +
-                  '• Campo name\n\n' +
-                  'Por favor verifica el formato de tu AIOStreams.');
-            openHelpModal();
+              'El formato debe incluir infoHash en:\n' +
+              '• URL del stream (btih:HASH o /resolve/.../HASH)\n' +
+              '• Campo description\n' +
+              '• Campo name\n\n' +
+              'Por favor verifica el formato de tu AIOStreams.' +
+              '<div class="alert-actions">' +
+              '<button type="button" class="alert-copy-btn" onclick="openHelpModal()">Abrir ayuda</button>' +
+              '</div>');
           } else if (streamsWithRequiredFormatter === 0) {
             updateValidationStatus('invalid', 'Falta el formatter requerido');
-            showError('⚠️ El link responde, pero no veo el formato requerido en name template o description template.\n\n' +
-                  'Pega exactamente este formatter en ambos campos y vuelve a validar.');
-            openHelpModal();
+            showError('⚠️ El link responde, pero no veo el formato requerido en <strong>name template</strong> o <strong>description template</strong>.\n\n' +
+              'Pega exactamente este formatter en ambos campos y vuelve a validar.' +
+              '<div class="alert-actions">' +
+              '<button type="button" class="alert-copy-btn" onclick="openHelpModal()">Abrir ayuda</button>' +
+              '</div>');
           } else {
             updateValidationStatus('valid', streamsWithHash + ' de ' + streamCount + ' streams validados');
             showError('');
@@ -1232,7 +1260,7 @@ InfoHash:   {stream.infoHash}</pre>
     }
 
     function showError(message) {
-      errorBox.innerText = message;
+      errorBox.innerHTML = message;
       errorBox.classList.add('show');
       errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
