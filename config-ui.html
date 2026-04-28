@@ -108,12 +108,13 @@
     }
 
     .sidebar-help {
-      position: absolute;
-      left: 100%;
-      top: 0;
-      margin-left: 14px;
-      width: min(520px, calc(100vw - 130px));
-      padding: 16px;
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(760px, calc(100vw - 32px));
+      max-height: min(70vh, 760px);
+      padding: 18px;
       border: 1px solid var(--border);
       border-radius: 20px;
       background: rgba(10, 15, 30, 0.96);
@@ -121,11 +122,39 @@
       box-shadow: var(--shadow);
       display: none;
       z-index: 3;
+      overflow: auto;
     }
 
     .sidebar-help.show {
       display: grid;
       gap: 12px;
+    }
+
+    .sidebar-help-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .sidebar-help-close {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      cursor: pointer;
+      flex: 0 0 auto;
+      font-size: 18px;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+    }
+
+    .sidebar-help-close:hover {
+      background: rgba(255, 255, 255, 0.10);
+      border-color: var(--border-strong);
     }
 
     .sidebar-help h3 {
@@ -163,18 +192,11 @@
       gap: 10px;
     }
 
-    @media (max-width: 1120px) {
-      .sidebar-help {
-        left: 0;
-        top: calc(100% + 12px);
-        margin-left: 0;
-        width: min(720px, calc(100vw - 40px));
-      }
-    }
-
     @media (max-width: 720px) {
       .sidebar-help {
-        width: calc(100vw - 28px);
+        width: calc(100vw - 20px);
+        max-height: 80vh;
+        padding: 16px;
       }
     }
 
@@ -662,8 +684,13 @@
       <div class="help-shell">
         <button class="nav-button" title="Ayuda" type="button" id="helpButton" aria-expanded="false" aria-controls="helpPanel">❓</button>
         <div class="sidebar-help" id="helpPanel" aria-live="polite">
-          <h3>AIOStreams debe enviar el InfoHash</h3>
-          <p>En <strong>name template</strong> y <strong>description template</strong> agrega exactamente esta línea para que el addon funcione con el identificador del stream.</p>
+          <div class="sidebar-help-head">
+            <div>
+              <h3>AIOStreams debe enviar el InfoHash</h3>
+              <p>En <strong>name template</strong> y <strong>description template</strong> agrega exactamente esta línea para que el addon funcione con el identificador del stream.</p>
+            </div>
+            <button class="sidebar-help-close" type="button" id="helpCloseButton" aria-label="Cerrar ayuda">×</button>
+          </div>
           <pre>InfoHash:   {stream.infoHash}</pre>
           <p>Ejemplo del formatter:</p>
           <pre>{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
@@ -844,6 +871,7 @@ InfoHash:   {stream.infoHash}</pre>
     const maxStreamsInput = document.getElementById('maxStreams');
     const helpButton = document.getElementById('helpButton');
     const helpPanel = document.getElementById('helpPanel');
+    const helpCloseButton = document.getElementById('helpCloseButton');
     let linkValidated = false;
 
     async function refreshAddonCount() {
@@ -1211,11 +1239,23 @@ InfoHash:   {stream.infoHash}</pre>
       helpButton.setAttribute('aria-expanded', String(isOpen));
     });
 
+    helpCloseButton.addEventListener('click', () => {
+      helpPanel.classList.remove('show');
+      helpButton.setAttribute('aria-expanded', 'false');
+    });
+
     document.addEventListener('click', (event) => {
       if (!helpPanel.classList.contains('show')) return;
       if (helpPanel.contains(event.target) || helpButton.contains(event.target)) return;
       helpPanel.classList.remove('show');
       helpButton.setAttribute('aria-expanded', 'false');
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && helpPanel.classList.contains('show')) {
+        helpPanel.classList.remove('show');
+        helpButton.setAttribute('aria-expanded', 'false');
+      }
     });
   </script>
 </body>
