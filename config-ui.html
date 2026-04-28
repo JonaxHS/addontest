@@ -1221,11 +1221,7 @@ InfoHash:   {stream.infoHash}</pre>
 
           if (streamsWithHash === 0) {
             updateValidationStatus('invalid', 'No hay infoHash en los streams');
-            showError('⚠️  Link válido pero NO ENCONTRÓ infoHash en los ' + streamCount + ' streams.\n\n' +
-              'El addon necesita que el infoHash aparezca en alguno de estos campos:\n' +
-              '• URL del stream (btih:HASH o /resolve/.../HASH)\n' +
-              '• Campo description\n' +
-              '• Campo name\n\n' +
+            showError('⚠️  Link válido pero NO ENCONTRÓ el formatter necesario para funcionar.\n\n' +
               'Por favor verifica el formato de tu AIOStreams.' +
               '<div class="alert-actions">' +
               '<button type="button" class="alert-copy-btn" onclick="openHelpModal()">Abrir ayuda</button>' +
