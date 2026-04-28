@@ -941,6 +941,18 @@ InfoHash:   {stream.infoHash}</pre>
       fallbackAllLanguagesCheckbox.checked = false;
     }
 
+    function openHelpModal() {
+      helpOverlay.classList.add('show');
+      helpOverlay.setAttribute('aria-hidden', 'false');
+      helpButton.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeHelpModal() {
+      helpOverlay.classList.remove('show');
+      helpOverlay.setAttribute('aria-hidden', 'true');
+      helpButton.setAttribute('aria-expanded', 'false');
+    }
+
     // Handle direct AIOStreams filtering toggle
     const useAioFilteringCheckbox = document.getElementById('useAioFiltering');
     
@@ -1177,9 +1189,17 @@ InfoHash:   {stream.infoHash}</pre>
 
           // Check how many streams have valid infoHash
           let streamsWithHash = 0;
+          let streamsWithRequiredFormatter = 0;
           for (const stream of streams) {
             if (findInfoHashInStream(stream)) {
               streamsWithHash++;
+            }
+
+            const nameText = String(stream?.name || '');
+            const descriptionText = String(stream?.description || '');
+            const hasRequiredFormatter = /InfoHash:\s*{stream\.infoHash}/i.test(nameText) || /InfoHash:\s*{stream\.infoHash}/i.test(descriptionText);
+            if (hasRequiredFormatter) {
+              streamsWithRequiredFormatter++;
             }
           }
 
@@ -1191,6 +1211,12 @@ InfoHash:   {stream.infoHash}</pre>
                   '• Campo description\n' +
                   '• Campo name\n\n' +
                   'Por favor verifica el formato de tu AIOStreams.');
+            openHelpModal();
+          } else if (streamsWithRequiredFormatter === 0) {
+            updateValidationStatus('invalid', 'Falta el formatter requerido');
+            showError('⚠️ El link responde, pero no veo el formato requerido en name template o description template.\n\n' +
+                  'Pega exactamente este formatter en ambos campos y vuelve a validar.');
+            openHelpModal();
           } else {
             updateValidationStatus('valid', streamsWithHash + ' de ' + streamCount + ' streams validados');
             showError('');
@@ -1255,40 +1281,34 @@ InfoHash:   {stream.infoHash}</pre>
     }
 
     helpButton.addEventListener('click', () => {
-      const isOpen = helpOverlay.classList.toggle('show');
-      helpButton.setAttribute('aria-expanded', String(isOpen));
-      helpOverlay.setAttribute('aria-hidden', String(!isOpen));
+      if (helpOverlay.classList.contains('show')) {
+        closeHelpModal();
+      } else {
+        openHelpModal();
+      }
     });
 
     helpCloseButton.addEventListener('click', () => {
-      helpOverlay.classList.remove('show');
-      helpButton.setAttribute('aria-expanded', 'false');
-      helpOverlay.setAttribute('aria-hidden', 'true');
+      closeHelpModal();
     });
 
     document.addEventListener('click', (event) => {
       if (!helpOverlay.classList.contains('show')) return;
       if (helpPanel.contains(event.target) || helpButton.contains(event.target)) return;
       if (event.target === helpOverlay) {
-        helpOverlay.classList.remove('show');
-        helpButton.setAttribute('aria-expanded', 'false');
-        helpOverlay.setAttribute('aria-hidden', 'true');
+        closeHelpModal();
       }
     });
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && helpOverlay.classList.contains('show')) {
-        helpOverlay.classList.remove('show');
-        helpButton.setAttribute('aria-expanded', 'false');
-        helpOverlay.setAttribute('aria-hidden', 'true');
+        closeHelpModal();
       }
     });
 
     helpOverlay.addEventListener('click', (event) => {
       if (event.target !== helpOverlay) return;
-      helpOverlay.classList.remove('show');
-      helpButton.setAttribute('aria-expanded', 'false');
-      helpOverlay.setAttribute('aria-hidden', 'true');
+      closeHelpModal();
     });
   </script>
 </body>
