@@ -107,27 +107,34 @@
       transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
     }
 
-    .sidebar-help {
+    .help-overlay {
       position: fixed;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: min(760px, calc(100vw - 32px));
-      max-height: min(70vh, 760px);
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(3, 7, 18, 0.72);
+      backdrop-filter: blur(8px);
+      z-index: 2000;
+    }
+
+    .help-overlay.show {
+      display: flex;
+    }
+
+    .sidebar-help {
+      width: min(760px, calc(100vw - 48px));
+      max-height: min(78vh, 760px);
       padding: 18px;
       border: 1px solid var(--border);
       border-radius: 20px;
-      background: rgba(10, 15, 30, 0.96);
+      background: rgba(10, 15, 30, 0.98);
       backdrop-filter: blur(18px);
       box-shadow: var(--shadow);
-      display: none;
-      z-index: 3;
-      overflow: auto;
-    }
-
-    .sidebar-help.show {
       display: grid;
       gap: 12px;
+      overflow: auto;
     }
 
     .sidebar-help-head {
@@ -185,17 +192,14 @@
       line-height: 1.55;
     }
 
-    .help-shell {
-      position: relative;
-      display: grid;
-      justify-items: center;
-      gap: 10px;
-    }
-
     @media (max-width: 720px) {
+      .help-overlay {
+        padding: 10px;
+      }
+
       .sidebar-help {
         width: calc(100vw - 20px);
-        max-height: 80vh;
+        max-height: 82vh;
         padding: 16px;
       }
     }
@@ -681,24 +685,7 @@
       <div class="brand">AD</div>
       <button class="nav-button" title="Inicio" type="button">🏠</button>
       <div class="nav-spacer"></div>
-      <div class="help-shell">
-        <button class="nav-button" title="Ayuda" type="button" id="helpButton" aria-expanded="false" aria-controls="helpPanel">❓</button>
-        <div class="sidebar-help" id="helpPanel" aria-live="polite">
-          <div class="sidebar-help-head">
-            <div>
-              <h3>AIOStreams debe enviar el InfoHash</h3>
-              <p>En <strong>name template</strong> y <strong>description template</strong> agrega exactamente esta línea para que el addon funcione con el identificador del stream.</p>
-            </div>
-            <button class="sidebar-help-close" type="button" id="helpCloseButton" aria-label="Cerrar ayuda">×</button>
-          </div>
-          <pre>InfoHash:   {stream.infoHash}</pre>
-          <p>Ejemplo del formatter:</p>
-          <pre>{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
-{stream.title::exists["🎬 {stream.title}"||"🎬 {stream.filename}{tools.newLine} "]}{stream.year::exists[" ({stream.year})"||""]}{stream.title::exists[""||"{tools.removeLine}"]} {stream.filename::~extended["⏩ Extended Cut "||""]}{stream.filename::~theatrical["🎭 Theatrical Cut "||""]}{stream.filename::~director["🎬 Director's Cut "||""]}{stream.filename::~dc["🎬 Director's Cut "||""]}{stream.filename::~alternate["🔀 Alternate Edition "||""]}{stream.filename::~complete["📦 Complete Edition "||""]}{stream.filename::~special["🎁 Special Edition "||""]}{stream.filename::~anniversary["🎉 Anniversary Edition "||""]}{stream.filename::~imax["🏟️ IMAX Edition "||""]}{stream.filename::~collectors["🎖️ Collector's Edition "||""]}{stream.filename::~unrated["🚫 Unrated Cut "||""]}{stream.filename::~uncensored["🔞 Uncensored "||""]}{stream.filename::~preview["👀 Preview Cut "||""]}{stream.filename::~festival["🏆 Festival Cut "||""]} {stream.season::>=0["📁 S"||""]}{stream.season::<=9["0"||""]}{stream.season::>0["{stream.season}"||""]}{stream.episode::>=0[" - E"||""]}{stream.episode::<=9["0"||""]}{stream.episode::>0["{stream.episode}"||""]} {stream.languages::exists["🌎 {stream.languages::join(' | ')}"||""]} {stream.duration::>0["⏱️ {stream.duration::time} "||""]}{stream.quality::~REMUX["📀 High Quality"||""]}{stream.quality::=BluRay["💿 High Quality"||""]} {stream.size::>0["📦 {stream.size::bytes} "||""]}🍿 {addon.name}{stream.type::=Usenet[" 📰"||""]} {stream.message::exists["ℹ️ {stream.message}"||""]}
-
-InfoHash:   {stream.infoHash}</pre>
-        </div>
-      </div>
+      <button class="nav-button" title="Ayuda" type="button" id="helpButton" aria-expanded="false" aria-controls="helpOverlay">❓</button>
     </aside>
 
     <main class="content">
@@ -860,6 +847,24 @@ InfoHash:   {stream.infoHash}</pre>
     </main>
   </div>
 
+  <div class="help-overlay" id="helpOverlay" aria-hidden="true">
+    <div class="sidebar-help" id="helpPanel" aria-live="polite" role="dialog" aria-modal="true" aria-label="Ayuda de AIOStreams">
+      <div class="sidebar-help-head">
+        <div>
+          <h3>AIOStreams debe enviar el InfoHash</h3>
+          <p>En <strong>name template</strong> y <strong>description template</strong> agrega exactamente esta línea para que el addon funcione con el identificador del stream.</p>
+        </div>
+        <button class="sidebar-help-close" type="button" id="helpCloseButton" aria-label="Cerrar ayuda">×</button>
+      </div>
+      <pre>InfoHash:   {stream.infoHash}</pre>
+      <p>Ejemplo del formatter:</p>
+      <pre>{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
+{stream.title::exists["🎬 {stream.title}"||"🎬 {stream.filename}{tools.newLine} "]}{stream.year::exists[" ({stream.year})"||""]}{stream.title::exists[""||"{tools.removeLine}"]} {stream.filename::~extended["⏩ Extended Cut "||""]}{stream.filename::~theatrical["🎭 Theatrical Cut "||""]}{stream.filename::~director["🎬 Director's Cut "||""]}{stream.filename::~dc["🎬 Director's Cut "||""]}{stream.filename::~alternate["🔀 Alternate Edition "||""]}{stream.filename::~complete["📦 Complete Edition "||""]}{stream.filename::~special["🎁 Special Edition "||""]}{stream.filename::~anniversary["🎉 Anniversary Edition "||""]}{stream.filename::~imax["🏟️ IMAX Edition "||""]}{stream.filename::~collectors["🎖️ Collector's Edition "||""]}{stream.filename::~unrated["🚫 Unrated Cut "||""]}{stream.filename::~uncensored["🔞 Uncensored "||""]}{stream.filename::~preview["👀 Preview Cut "||""]}{stream.filename::~festival["🏆 Festival Cut "||""]} {stream.season::>=0["📁 S"||""]}{stream.season::<=9["0"||""]}{stream.season::>0["{stream.season}"||""]}{stream.episode::>=0[" - E"||""]}{stream.episode::<=9["0"||""]}{stream.episode::>0["{stream.episode}"||""]} {stream.languages::exists["🌎 {stream.languages::join(' | ')}"||""]} {stream.duration::>0["⏱️ {stream.duration::time} "||""]}{stream.quality::~REMUX["📀 High Quality"||""]}{stream.quality::=BluRay["💿 High Quality"||""]} {stream.size::>0["📦 {stream.size::bytes} "||""]}🍿 {addon.name}{stream.type::=Usenet[" 📰"||""]} {stream.message::exists["ℹ️ {stream.message}"]}
+
+InfoHash:   {stream.infoHash}</pre>
+    </div>
+  </div>
+
   <script>
     const form = document.getElementById('configForm');
     const resultSection = document.getElementById('resultSection');
@@ -871,6 +876,7 @@ InfoHash:   {stream.infoHash}</pre>
     const maxStreamsInput = document.getElementById('maxStreams');
     const helpButton = document.getElementById('helpButton');
     const helpPanel = document.getElementById('helpPanel');
+    const helpOverlay = document.getElementById('helpOverlay');
     const helpCloseButton = document.getElementById('helpCloseButton');
     let linkValidated = false;
 
@@ -1235,27 +1241,40 @@ InfoHash:   {stream.infoHash}</pre>
     }
 
     helpButton.addEventListener('click', () => {
-      const isOpen = helpPanel.classList.toggle('show');
+      const isOpen = helpOverlay.classList.toggle('show');
       helpButton.setAttribute('aria-expanded', String(isOpen));
+      helpOverlay.setAttribute('aria-hidden', String(!isOpen));
     });
 
     helpCloseButton.addEventListener('click', () => {
-      helpPanel.classList.remove('show');
+      helpOverlay.classList.remove('show');
       helpButton.setAttribute('aria-expanded', 'false');
+      helpOverlay.setAttribute('aria-hidden', 'true');
     });
 
     document.addEventListener('click', (event) => {
-      if (!helpPanel.classList.contains('show')) return;
+      if (!helpOverlay.classList.contains('show')) return;
       if (helpPanel.contains(event.target) || helpButton.contains(event.target)) return;
-      helpPanel.classList.remove('show');
-      helpButton.setAttribute('aria-expanded', 'false');
+      if (event.target === helpOverlay) {
+        helpOverlay.classList.remove('show');
+        helpButton.setAttribute('aria-expanded', 'false');
+        helpOverlay.setAttribute('aria-hidden', 'true');
+      }
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && helpPanel.classList.contains('show')) {
-        helpPanel.classList.remove('show');
+      if (event.key === 'Escape' && helpOverlay.classList.contains('show')) {
+        helpOverlay.classList.remove('show');
         helpButton.setAttribute('aria-expanded', 'false');
+        helpOverlay.setAttribute('aria-hidden', 'true');
       }
+    });
+
+    helpOverlay.addEventListener('click', (event) => {
+      if (event.target !== helpOverlay) return;
+      helpOverlay.classList.remove('show');
+      helpButton.setAttribute('aria-expanded', 'false');
+      helpOverlay.setAttribute('aria-hidden', 'true');
     });
   </script>
 </body>
