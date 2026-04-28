@@ -1211,37 +1211,22 @@ InfoHash:   {stream.infoHash}</pre>
             return;
           }
 
-          // Check how many streams have valid infoHash
+          // Check how many streams have valid infoHash in the available fields
           let streamsWithHash = 0;
-          let streamsWithRequiredFormatter = 0;
           for (const stream of streams) {
             if (findInfoHashInStream(stream)) {
               streamsWithHash++;
-            }
-
-            const nameText = String(stream?.name || '');
-            const descriptionText = String(stream?.description || '');
-            const hasRequiredFormatter = /InfoHash:\s*{stream\.infoHash}/i.test(nameText) || /InfoHash:\s*{stream\.infoHash}/i.test(descriptionText);
-            if (hasRequiredFormatter) {
-              streamsWithRequiredFormatter++;
             }
           }
 
           if (streamsWithHash === 0) {
             updateValidationStatus('invalid', 'No hay infoHash en los streams');
             showError('⚠️  Link válido pero NO ENCONTRÓ infoHash en los ' + streamCount + ' streams.\n\n' +
-              'El formato debe incluir infoHash en:\n' +
+              'El addon necesita que el infoHash aparezca en alguno de estos campos:\n' +
               '• URL del stream (btih:HASH o /resolve/.../HASH)\n' +
               '• Campo description\n' +
               '• Campo name\n\n' +
               'Por favor verifica el formato de tu AIOStreams.' +
-              '<div class="alert-actions">' +
-              '<button type="button" class="alert-copy-btn" onclick="openHelpModal()">Abrir ayuda</button>' +
-              '</div>');
-          } else if (streamsWithRequiredFormatter === 0) {
-            updateValidationStatus('invalid', 'Falta el formatter requerido');
-            showError('⚠️ El link responde, pero no veo el formato requerido en <strong>name template</strong> o <strong>description template</strong>.\n\n' +
-              'Pega exactamente este formatter en ambos campos y vuelve a validar.' +
               '<div class="alert-actions">' +
               '<button type="button" class="alert-copy-btn" onclick="openHelpModal()">Abrir ayuda</button>' +
               '</div>');
