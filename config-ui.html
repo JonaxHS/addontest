@@ -621,6 +621,12 @@
 
               <div class="mini-grid">
                 <div class="mini-panel">
+                  <label class="check" style="margin-bottom: 12px;">
+                    <input type="checkbox" id="useAioFiltering"> 
+                    <span>Filtrado directo desde AIOStreams</span>
+                  </label>
+                  <div class="hint" style="margin-bottom: 12px;">Activa esta opción para obtener todos los streams tal como los envía AIOStreams, sin filtrado local de idiomas.</div>
+                  
                   <label for="languageFilter">Idiomas a Filtrar</label>
                   <select id="languageFilter" class="input" multiple style="min-height: 120px;">
                     <option value="español" selected>Español</option>
@@ -733,6 +739,22 @@
 
     refreshAddonCount();
 
+    // Handle direct AIOStreams filtering toggle
+    const useAioFilteringCheckbox = document.getElementById('useAioFiltering');
+    const languageFilterSelect = document.getElementById('languageFilter');
+    
+    useAioFilteringCheckbox.addEventListener('change', (e) => {
+      // Disable/enable language filter based on checkbox
+      languageFilterSelect.disabled = e.target.checked;
+      if (e.target.checked) {
+        languageFilterSelect.style.opacity = '0.5';
+        languageFilterSelect.style.cursor = 'not-allowed';
+      } else {
+        languageFilterSelect.style.opacity = '1';
+        languageFilterSelect.style.cursor = 'pointer';
+      }
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorBox.classList.remove('show');
@@ -750,9 +772,15 @@
 
       let aioLink = document.getElementById('aioLink').value.trim();
       
-      // Get selected languages
-      const languageSelect = document.getElementById('languageFilter');
-      const selectedLanguages = Array.from(languageSelect.selectedOptions).map(opt => opt.value);
+      // Check if using direct AIOStreams filtering
+      const useAioFiltering = document.getElementById('useAioFiltering').checked;
+      
+      // Get selected languages (empty if using AIOStreams filtering directly)
+      let selectedLanguages = [];
+      if (!useAioFiltering) {
+        const languageSelect = document.getElementById('languageFilter');
+        selectedLanguages = Array.from(languageSelect.selectedOptions).map(opt => opt.value);
+      }
       
       const markers = document.getElementById('markers').value.trim();
       const maxStreams = parseInt(document.getElementById('maxStreams').value) || 0;
@@ -762,8 +790,8 @@
         return;
       }
 
-      if (selectedLanguages.length === 0) {
-        showError('Por favor selecciona al menos un idioma');
+      if (!useAioFiltering && selectedLanguages.length === 0) {
+        showError('Por favor selecciona al menos un idioma o activa "Filtrado directo desde AIOStreams"');
         return;
       }
 

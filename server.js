@@ -462,7 +462,7 @@ const server = createServer(async (req, res) => {
         const payload = JSON.parse(body);
         let { serverUrl, aioLink, languages, markers, maxStreams } = payload;
 
-        if (!serverUrl || !aioLink || !markers || !languages || !Array.isArray(languages)) {
+        if (!serverUrl || !aioLink || !markers || !Array.isArray(languages)) {
           sendJson(res, 400, { error: "serverUrl, aioLink, markers, and languages array are required" });
           return;
         }
