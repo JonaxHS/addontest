@@ -305,9 +305,11 @@ async function handleStream(req, res, pathname, config) {
   try {
     const cfg = config || {
       aioBase: AIO_BASE,
+      useAioFiltering: false,
       selectedLanguages: LATINO_MARKERS.length > 0 ? ['español', 'latino'] : [],
       maxStreams: MAX_STREAMS,
-      searchMarkers: LATINO_MARKERS
+      searchMarkers: LATINO_MARKERS,
+      fallbackAllLanguages: false
     };
 
     const searchPattern = pathname.slice("/stream/".length, -".json".length);
@@ -380,6 +382,11 @@ async function handleStream(req, res, pathname, config) {
     }
 
     let output = converted;
+
+    if (cfg.useAioFiltering) {
+      sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
+      return;
+    }
 
     // Filter by selected languages/search markers
     if (cfg.selectedLanguages && cfg.selectedLanguages.length > 0 && cfg.searchMarkers) {
@@ -466,10 +473,10 @@ const server = createServer(async (req, res) => {
     req.on("end", () => {
       try {
         const payload = JSON.parse(body);
-        let { serverUrl, aioLink, languages, markers, maxStreams, fallbackAllLanguages } = payload;
+        let { serverUrl, aioLink, languages, markers, maxStreams, fallbackAllLanguages, useAioFiltering } = payload;
 
-        if (!serverUrl || !aioLink || !markers || !Array.isArray(languages)) {
-          sendJson(res, 400, { error: "serverUrl, aioLink, markers, and languages array are required" });
+        if (!serverUrl || !aioLink || !Array.isArray(languages)) {
+          sendJson(res, 400, { error: "serverUrl, aioLink and languages array are required" });
           return;
         }
 
@@ -499,7 +506,8 @@ const server = createServer(async (req, res) => {
           selectedLanguages: languageList,
           maxStreams: parseInt(maxStreams) || 0,
           searchMarkers: markerList,
-          fallbackAllLanguages: fallbackAllLanguages === true
+          fallbackAllLanguages: fallbackAllLanguages === true,
+          useAioFiltering: useAioFiltering === true
         };
 
         // Store config in-memory with meta and persist to its own JSON file

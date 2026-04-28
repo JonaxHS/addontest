@@ -731,6 +731,9 @@
     const errorBox = document.getElementById('error');
     const addonCountEl = document.getElementById('addonCount');
     const languageFilterSelect = document.getElementById('languageFilter');
+    const markersInput = document.getElementById('markers');
+    const fallbackAllLanguagesCheckbox = document.getElementById('fallbackAllLanguages');
+    const maxStreamsInput = document.getElementById('maxStreams');
     let linkValidated = false;
 
     async function refreshAddonCount() {
@@ -784,8 +787,15 @@
         }
       }
       
-      const markersInput = document.getElementById('markers');
       markersInput.value = Array.from(markersSet).join(',');
+    }
+
+    function clearLocalFilters() {
+      for (const option of languageFilterSelect.options) {
+        option.selected = false;
+      }
+      markersInput.value = '';
+      fallbackAllLanguagesCheckbox.checked = false;
     }
 
     // Handle direct AIOStreams filtering toggle
@@ -794,12 +804,20 @@
     useAioFilteringCheckbox.addEventListener('change', (e) => {
       // Disable/enable language filter based on checkbox
       languageFilterSelect.disabled = e.target.checked;
+      markersInput.disabled = e.target.checked;
+      fallbackAllLanguagesCheckbox.disabled = e.target.checked;
       if (e.target.checked) {
+        clearLocalFilters();
         languageFilterSelect.style.opacity = '0.5';
         languageFilterSelect.style.cursor = 'not-allowed';
+        markersInput.style.opacity = '0.5';
+        fallbackAllLanguagesCheckbox.style.opacity = '0.5';
       } else {
         languageFilterSelect.style.opacity = '1';
         languageFilterSelect.style.cursor = 'pointer';
+        markersInput.style.opacity = '1';
+        fallbackAllLanguagesCheckbox.style.opacity = '1';
+        updateMarkersFromLanguages();
       }
     });
 
@@ -841,8 +859,8 @@
         selectedLanguages = Array.from(languageSelect.selectedOptions).map(opt => opt.value);
       }
       
-      const markers = document.getElementById('markers').value.trim();
-      const maxStreams = parseInt(document.getElementById('maxStreams').value) || 0;
+      const markers = markersInput.value.trim();
+      const maxStreams = parseInt(maxStreamsInput.value) || 0;
 
       if (!aioLink) {
         showError('Por favor pega tu link de AIOStreams');
@@ -854,7 +872,7 @@
         return;
       }
 
-      if (!markers) {
+      if (!useAioFiltering && !markers) {
         showError('Debes especificar al menos una palabra clave');
         return;
       }
@@ -879,7 +897,8 @@
             languages: selectedLanguages,
             markers,
             maxStreams,
-            fallbackAllLanguages
+            fallbackAllLanguages,
+            useAioFiltering
           })
         });
 
