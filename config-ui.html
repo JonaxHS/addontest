@@ -107,6 +107,77 @@
       transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
     }
 
+    .sidebar-help {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      margin-left: 14px;
+      width: min(520px, calc(100vw - 130px));
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: rgba(10, 15, 30, 0.96);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      display: none;
+      z-index: 3;
+    }
+
+    .sidebar-help.show {
+      display: grid;
+      gap: 12px;
+    }
+
+    .sidebar-help h3 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .sidebar-help p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .sidebar-help pre {
+      margin: 0;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(5, 10, 22, 0.72);
+      color: #dce4f6;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .help-shell {
+      position: relative;
+      display: grid;
+      justify-items: center;
+      gap: 10px;
+    }
+
+    @media (max-width: 1120px) {
+      .sidebar-help {
+        left: 0;
+        top: calc(100% + 12px);
+        margin-left: 0;
+        width: min(720px, calc(100vw - 40px));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .sidebar-help {
+        width: calc(100vw - 28px);
+      }
+    }
+
     .nav-button:hover {
       transform: translateY(-1px);
       background: rgba(255, 255, 255, 0.08);
@@ -588,7 +659,19 @@
       <div class="brand">AD</div>
       <button class="nav-button" title="Inicio" type="button">🏠</button>
       <div class="nav-spacer"></div>
-      <button class="nav-button" title="Ayuda" type="button">❓</button>
+      <div class="help-shell">
+        <button class="nav-button" title="Ayuda" type="button" id="helpButton" aria-expanded="false" aria-controls="helpPanel">❓</button>
+        <div class="sidebar-help" id="helpPanel" aria-live="polite">
+          <h3>AIOStreams debe enviar el InfoHash</h3>
+          <p>En <strong>name template</strong> y <strong>description template</strong> agrega exactamente esta línea para que el addon funcione con el identificador del stream.</p>
+          <pre>InfoHash:   {stream.infoHash}</pre>
+          <p>Ejemplo del formatter:</p>
+          <pre>{stream.resolution::=2160p["🔥 4K"||""]}{stream.resolution::=1080p["📀 1080p"||""]}{stream.resolution::=1440p["🚀 1440p"||""]}{stream.resolution::=720p["💿 720p"||""]}{stream.resolution::=420p["💩 Low Quality"||""]}{stream.resolution::=480p["💩 Low Quality"||""]}{stream.resolution::=576p["💩 Low Quality"||""]}{stream.resolution::=360p["💩 Low Quality"||""]}{stream.resolution::=240p["💩 Low Quality"||""]}{stream.resolution::=144p["💩 Low Quality"||""]}{stream.resolution::exists[""||"❔ Unknown Quality"]}{service.cached::istrue[" ⚡ "||" ⏳ Click para descargar "]}
+{stream.title::exists["🎬 {stream.title}"||"🎬 {stream.filename}{tools.newLine} "]}{stream.year::exists[" ({stream.year})"||""]}{stream.title::exists[""||"{tools.removeLine}"]} {stream.filename::~extended["⏩ Extended Cut "||""]}{stream.filename::~theatrical["🎭 Theatrical Cut "||""]}{stream.filename::~director["🎬 Director's Cut "||""]}{stream.filename::~dc["🎬 Director's Cut "||""]}{stream.filename::~alternate["🔀 Alternate Edition "||""]}{stream.filename::~complete["📦 Complete Edition "||""]}{stream.filename::~special["🎁 Special Edition "||""]}{stream.filename::~anniversary["🎉 Anniversary Edition "||""]}{stream.filename::~imax["🏟️ IMAX Edition "||""]}{stream.filename::~collectors["🎖️ Collector's Edition "||""]}{stream.filename::~unrated["🚫 Unrated Cut "||""]}{stream.filename::~uncensored["🔞 Uncensored "||""]}{stream.filename::~preview["👀 Preview Cut "||""]}{stream.filename::~festival["🏆 Festival Cut "||""]} {stream.season::>=0["📁 S"||""]}{stream.season::<=9["0"||""]}{stream.season::>0["{stream.season}"||""]}{stream.episode::>=0[" - E"||""]}{stream.episode::<=9["0"||""]}{stream.episode::>0["{stream.episode}"||""]} {stream.languages::exists["🌎 {stream.languages::join(' | ')}"||""]} {stream.duration::>0["⏱️ {stream.duration::time} "||""]}{stream.quality::~REMUX["📀 High Quality"||""]}{stream.quality::=BluRay["💿 High Quality"||""]} {stream.size::>0["📦 {stream.size::bytes} "||""]}🍿 {addon.name}{stream.type::=Usenet[" 📰"||""]} {stream.message::exists["ℹ️ {stream.message}"||""]}
+
+InfoHash:   {stream.infoHash}</pre>
+        </div>
+      </div>
     </aside>
 
     <main class="content">
@@ -599,8 +682,7 @@
           <p class="subtitle">Configura y genera tu addon personalizado para DebridStream.</p>
         </div>
         <div class="hero-actions">
-          <button class="ghost" type="button" onclick="location.reload()">← Previous</button>
-          <button class="primary" type="button">Next →</button>
+          
         </div>
       </section>
 
@@ -760,6 +842,8 @@
     const markersInput = document.getElementById('markers');
     const fallbackAllLanguagesCheckbox = document.getElementById('fallbackAllLanguages');
     const maxStreamsInput = document.getElementById('maxStreams');
+    const helpButton = document.getElementById('helpButton');
+    const helpPanel = document.getElementById('helpPanel');
     let linkValidated = false;
 
     async function refreshAddonCount() {
@@ -1121,6 +1205,18 @@
       document.getElementById('generateBtn').disabled = true;
       document.getElementById('validationStatus').style.display = 'none';
     }
+
+    helpButton.addEventListener('click', () => {
+      const isOpen = helpPanel.classList.toggle('show');
+      helpButton.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!helpPanel.classList.contains('show')) return;
+      if (helpPanel.contains(event.target) || helpButton.contains(event.target)) return;
+      helpPanel.classList.remove('show');
+      helpButton.setAttribute('aria-expanded', 'false');
+    });
   </script>
 </body>
 </html>
