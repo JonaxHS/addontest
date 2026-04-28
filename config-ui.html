@@ -140,6 +140,28 @@
       align-items: center;
     }
 
+    .metrics {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .metrics .mini-panel {
+      padding: 14px 16px;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .debrid-logo {
+      width: 120px;
+      height: auto;
+      display: block;
+    }
+
     .eyebrow {
       display: inline-flex;
       align-items: center;
@@ -584,6 +606,12 @@
           <span class="result-label">Addons generados</span>
           <strong id="addonCount">0</strong>
           <div class="hint" style="margin-top:8px;">Se cuenta cada archivo JSON creado dentro de <strong>data/addons</strong>.</div>
+        </div>
+
+        <div class="mini-panel" aria-label="DebridStream">
+          <span class="result-label">Integración</span>
+          <img src="assets/debrid-logo.png" alt="DebridStream" class="debrid-logo" onerror="this.style.opacity=0.6; this.nextElementSibling.style.display='block';">
+          <div class="hint" style="margin-top:6px; display:none">DebridStream</div>
         </div>
       </section>
 
