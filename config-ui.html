@@ -5,406 +5,724 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Generador de Addon AIOStreams → DebridStream</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      --bg: #0b1020;
+      --bg-soft: #111831;
+      --panel: rgba(18, 25, 49, 0.88);
+      --panel-2: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #edf2ff;
+      --muted: #9aa7c2;
+      --muted-2: #73809c;
+      --accent: #7c6cff;
+      --accent-2: #4bc1ff;
+      --accent-3: #1ed49b;
+      --danger: #ff6b7a;
+      --warning: #ffbf4d;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
     }
 
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(124, 108, 255, 0.20), transparent 30%),
+        radial-gradient(circle at top right, rgba(75, 193, 255, 0.18), transparent 26%),
+        linear-gradient(160deg, #071022 0%, #0d1427 48%, #060912 100%);
       min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 80%);
+      opacity: 0.45;
+    }
+
+    .shell {
+      width: min(1320px, calc(100% - 32px));
+      margin: 16px auto 28px;
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      position: relative;
+      z-index: 1;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 16px;
+      padding: 12px 10px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: rgba(10, 15, 30, 0.72);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      gap: 10px;
+      min-height: calc(100vh - 48px);
     }
 
-    .container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 700px;
-      width: 100%;
-      padding: 40px;
+    .brand {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 12px 28px rgba(124, 108, 255, 0.38);
+      margin-bottom: 8px;
     }
 
-    h1 {
-      color: #333;
-      margin-bottom: 10px;
-      font-size: 28px;
+    .nav-button {
+      width: 52px;
+      height: 52px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      font-size: 1.02rem;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .nav-button:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--border-strong);
+    }
+
+    .nav-spacer { flex: 1; }
+
+    .content {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .hero,
+    .card,
+    .result-card,
+    .section-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(16, 22, 43, 0.92), rgba(10, 14, 28, 0.92));
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 22px 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(124, 108, 255, 0.35);
+      background: rgba(124, 108, 255, 0.12);
+      color: #d9d5ff;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 12px 0 8px;
+      font-size: clamp(28px, 3vw, 40px);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
     }
 
     .subtitle {
-      color: #999;
-      margin-bottom: 30px;
+      margin: 0;
+      color: var(--muted);
+      max-width: 58ch;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .ghost,
+    .primary,
+    .secondary,
+    .tiny {
+      border: 0;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, opacity 180ms ease;
+    }
+
+    .ghost:hover,
+    .primary:hover,
+    .secondary:hover,
+    .tiny:hover { transform: translateY(-1px); }
+
+    .primary {
+      color: white;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 12px 24px rgba(124, 108, 255, 0.28);
+    }
+
+    .secondary,
+    .ghost,
+    .tiny {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+    }
+
+    .ghost,
+    .primary {
+      min-width: 132px;
+      padding: 12px 16px;
       font-size: 14px;
     }
 
-    .form-group {
-      margin-bottom: 25px;
+    .secondary {
+      padding: 12px 16px;
+      font-size: 14px;
     }
+
+    .tiny {
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--panel-2);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .metric strong {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+      gap: 18px;
+    }
+
+    .card,
+    .section-card,
+    .result-card {
+      padding: 20px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .stack { display: grid; gap: 14px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .field { display: grid; gap: 8px; }
 
     label {
-      display: block;
-      color: #333;
-      font-weight: 600;
-      margin-bottom: 8px;
-      font-size: 14px;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 13px;
     }
 
+    .input,
+    .textarea,
     input[type="text"],
     input[type="number"],
     textarea {
       width: 100%;
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 6px;
-      font-size: 14px;
-      font-family: 'Courier New', monospace;
-      transition: border-color 0.3s;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 13px 14px;
+      font: inherit;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
     }
 
+    .textarea,
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    .input:focus,
+    .textarea:focus,
     input[type="text"]:focus,
     input[type="number"]:focus,
     textarea:focus {
-      outline: none;
-      border-color: #667eea;
+      border-color: rgba(124, 108, 255, 0.7);
+      box-shadow: 0 0 0 4px rgba(124, 108, 255, 0.12);
+      background: rgba(255,255,255,0.055);
     }
 
-    textarea {
-      resize: vertical;
-      min-height: 80px;
+    .hint {
+      color: var(--muted-2);
+      font-size: 12px;
+      line-height: 1.5;
     }
+
+    .validation-status {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+    }
+
+    .validation-status.pending { color: var(--warning); }
+    .validation-status.valid { color: var(--accent-3); }
+    .validation-status.invalid { color: var(--danger); }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255, 191, 77, 0.25);
+      border-top-color: var(--warning);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex: 0 0 auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .checkbox-group {
       display: flex;
-      gap: 20px;
+      gap: 12px;
       flex-wrap: wrap;
     }
 
-    .checkbox-item {
-      display: flex;
+    .check {
+      display: inline-flex;
       align-items: center;
       gap: 8px;
-    }
-
-    input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
       cursor: pointer;
-      accent-color: #667eea;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
     }
 
-    .checkbox-item label {
+    .check input {
+      width: 16px;
+      height: 16px;
       margin: 0;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .help-text {
-      font-size: 12px;
-      color: #999;
-      margin-top: 6px;
+      accent-color: var(--accent);
     }
 
     .button-group {
       display: flex;
       gap: 12px;
-      margin-top: 30px;
+      flex-wrap: wrap;
     }
 
-    button {
-      flex: 1;
-      padding: 14px;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
+    .button-group .primary,
+    .button-group .secondary,
+    .button-group .ghost {
+      flex: 1 1 180px;
     }
 
-    .btn-generate {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-
-    .btn-generate:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-generate:active {
-      transform: translateY(0);
-    }
-
-    .btn-reset {
-      background: #f0f0f0;
-      color: #333;
-    }
-
-    .btn-reset:hover {
-      background: #e0e0e0;
-    }
-
-    .btn-generate:disabled {
-      background: #ccc;
-      color: #999;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    .btn-generate:disabled:hover {
-      transform: none;
-      box-shadow: none;
-    }
-
-    .validation-status {
-      font-size: 12px;
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .validation-status.pending {
-      color: #ff9800;
-    }
-
-    .validation-status.valid {
-      color: #4caf50;
-    }
-
-    .validation-status.invalid {
-      color: #f44336;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid rgba(255, 152, 0, 0.3);
-      border-top-color: #ff9800;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .btn-validate {
-      padding: 8px 16px;
-      background: #667eea;
-      color: white;
-      font-size: 12px;
-      flex: initial;
-      margin-top: 8px;
-    }
-
-    .btn-validate:hover {
-      background: #764ba2;
-    }
-
-    .result-section {
-      margin-top: 30px;
-      padding-top: 30px;
-      border-top: 2px solid #f0f0f0;
+    .result-card {
       display: none;
     }
 
-    .result-section.show {
+    .result-card.show {
       display: block;
     }
 
-    .result-title {
-      color: #333;
-      font-weight: 600;
-      margin-bottom: 15px;
-      font-size: 16px;
-    }
-
-    .result-box {
-      background: #f8f8f8;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-      padding: 15px;
-      margin-bottom: 12px;
-      word-break: break-all;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      max-height: 150px;
-      overflow-y: auto;
-    }
-
-    .copy-btn {
-      padding: 8px 16px;
-      background: #667eea;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.3s;
-      margin-right: 8px;
-    }
-
-    .copy-btn:hover {
-      background: #764ba2;
-    }
-
-    .copy-btn.copied {
-      background: #4caf50;
+    .result-list {
+      display: grid;
+      gap: 14px;
     }
 
     .result-item {
-      margin-bottom: 15px;
+      display: grid;
+      gap: 8px;
     }
 
     .result-label {
-      color: #667eea;
-      font-weight: 600;
-      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .result-box,
+    .code-box {
+      background: rgba(5, 10, 22, 0.72);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      color: #dce4f6;
+      padding: 14px 16px;
+      overflow: auto;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.55;
+      font-size: 12px;
+      max-height: 180px;
+    }
+
+    .result-box pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .copy-btn {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .copy-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.08);
+      border-color: var(--border-strong);
+    }
+
+    .copy-btn.copied {
+      color: #dffaf0;
+      background: rgba(30, 212, 155, 0.16);
+      border-color: rgba(30, 212, 155, 0.38);
+    }
+
+    .qr-note {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px dashed var(--border-strong);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
       font-size: 13px;
-    }
-
-    .qr-code {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .qr-code img {
-      max-width: 200px;
+      line-height: 1.55;
     }
 
     .error {
-      background: #fee;
-      color: #c00;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 20px;
       display: none;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 107, 122, 0.25);
+      background: rgba(255, 107, 122, 0.10);
+      color: #ffd4da;
+      font-size: 14px;
+      line-height: 1.55;
+      white-space: pre-wrap;
     }
 
-    .error.show {
+    .error.show { display: block; }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini-panel {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+
+    .mini-panel strong {
       display: block;
+      font-size: 18px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 1120px) {
+      .shell { grid-template-columns: 1fr; width: min(100% - 18px, 1320px); }
+      .sidebar {
+        position: relative;
+        top: auto;
+        min-height: 0;
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 10px;
+        overflow-x: auto;
+      }
+      .nav-spacer { display: none; }
+      .grid, .form-grid, .mini-grid, .metrics { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; align-items: flex-start; }
+      .hero-actions { width: 100%; justify-content: flex-start; }
+    }
+
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 12px, 1320px); margin-top: 8px; }
+      .hero, .card, .result-card, .section-card { padding: 16px; border-radius: 22px; }
+      .hero h1 { font-size: 26px; }
+      .ghost, .primary, .secondary { min-width: 0; width: 100%; }
+      .button-group .primary,
+      .button-group .secondary,
+      .button-group .ghost { flex-basis: 100%; }
     }
   </style>
 </head>
-  <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="logo">AS</div>
-      <button class="icon-btn" title="Home">🏠</button>
-      <button class="icon-btn" title="Guardar">💾</button>
-      <button class="icon-btn" title="Ajustes">⚙️</button>
-      <div style="flex:1"></div>
-      <button class="icon-btn" title="Ayuda">❓</button>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegación">
+      <div class="brand">AS</div>
+      <button class="nav-button" title="Inicio" type="button">🏠</button>
+      <button class="nav-button" title="Guardar" type="button">💾</button>
+      <button class="nav-button" title="Ajustes" type="button">⚙️</button>
+      <div class="nav-spacer"></div>
+      <button class="nav-button" title="Ayuda" type="button">❓</button>
     </aside>
 
-    <main class="main">
-      <div class="header">
-        <div class="title-group">
-          <h1>Instalar Addon</h1>
-          <div class="subtitle">Configura e instala tu addon personalizado</div>
-        </div>
+    <main class="content">
+      <section class="hero">
         <div>
-          <button class="btn btn-ghost" onclick="location.reload()">← Previous</button>
-          <button class="btn btn-primary" style="margin-left:8px">Next →</button>
+          <div class="eyebrow">Addon installer</div>
+          <h1>Instalar Addon</h1>
+          <p class="subtitle">Configura y genera tu addon personalizado con una interfaz más limpia, oscura y enfocada en la lectura rápida.</p>
         </div>
-      </div>
-
-      <div class="cards">
-        <div class="card">
-          <div style="font-weight:700;margin-bottom:8px">Guardar configuración</div>
-          <div class="save-row">
-            <div>
-              <div class="help-text">Guarda tu configuración en tu cuenta haciendo clic en Guardar abajo.</div>
-              <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-                <div class="uuid-box" id="uuidPreview">Tu UUID: 35099f5e-fd8c-488f-a701-2bd66af59ead</div>
-                <button class="btn btn-ghost">Save</button>
-              </div>
-            </div>
-            <div style="color:var(--muted);font-size:13px;">Show changes before saving <input type="checkbox" style="margin-left:8px"></div>
-          </div>
+        <div class="hero-actions">
+          <button class="ghost" type="button" onclick="location.reload()">← Previous</button>
+          <button class="primary" type="button">Next →</button>
         </div>
+      </section>
 
-        <div class="card">
-          <div class="help-text" style="margin-bottom:12px">Instalación - Usa el Manifest URL para instalar en Stremio u otros clientes compatibles</div>
+      <section class="metrics" aria-label="Resumen">
+        <div class="mini-panel">
+          <span class="result-label">Estado</span>
+          <strong>Listo</strong>
+        </div>
+        <div class="mini-panel">
+          <span class="result-label">Modo</span>
+          <strong>Dark UI</strong>
+        </div>
+        <div class="mini-panel">
+          <span class="result-label">Salida</span>
+          <strong>DebridStream</strong>
+        </div>
+      </section>
 
-          <form id="configForm">
-            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start">
+      <div class="error" id="error"></div>
+
+      <section class="grid">
+        <div class="stack">
+          <article class="section-card">
+            <div class="section-head">
               <div>
-                <label for="aioLink">Link de AIOStreams</label>
-                <textarea id="aioLink" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/manifest.json" required></textarea>
-                <div class="help-text">Pega tu link completo de AIOStreams (puede terminar en /manifest.json o /stream, se convertirá automáticamente)</div>
-                <div id="validationStatus" style="margin-top:8px;display:none;color:var(--muted)"></div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:8px">
-                <button type="button" class="btn btn-ghost" onclick="testAioLink()" id="validateBtn">Validar Link</button>
-                <div style="flex:1"></div>
-                <div style="font-size:12px;color:var(--muted)">Direct Manifest URL</div>
-                <div class="result-box">https://aiostream.axonim.lat/stremio/35099f5e-.../stream</div>
+                <h2 class="section-title">Guardar configuración</h2>
+                <p class="section-copy">Guarda tu configuración para reutilizarla más tarde sin perderla entre reinicios del contenedor.</p>
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="mini-grid">
+              <div class="mini-panel">
+                <span class="result-label">Tu UUID</span>
+                <strong id="uuidPreview" style="font-size:15px; line-height:1.5; word-break: break-all;">35099f5e-fd8c-488f-a701-2bd66af59ead</strong>
+              </div>
+              <div class="mini-panel" style="display:grid; gap:12px; align-content:start;">
+                <label class="check" style="justify-content:space-between;">
+                  <span>Show changes before saving</span>
+                  <input type="checkbox" style="accent-color: var(--accent);">
+                </label>
+                <button class="secondary" type="button" style="width:100%;">Save</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="section-card">
+            <div class="section-head">
               <div>
-                <label>Preferencias de Idioma</label>
-                <div class="checkbox-group">
-                  <label style="font-weight:500"><input type="checkbox" id="preferLatino" checked style="margin-right:8px">Preferir Latino</label>
-                  <label style="font-weight:500"><input type="checkbox" id="latinoOnly" style="margin-right:8px">Solo Latino</label>
+                <h2 class="section-title">Instalación</h2>
+                <p class="section-copy">Usa el enlace de AIOStreams para validar el origen antes de generar el addon.</p>
+              </div>
+            </div>
+
+            <form id="configForm" class="stack">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="aioLink">Link de AIOStreams</label>
+                  <textarea id="aioLink" class="textarea" placeholder="https://aiostream.axonim.lat/stremio/TOKEN/manifest.json" required></textarea>
+                  <div class="hint">Pega el link completo. Si termina en <strong>/manifest.json</strong> o <strong>/stream</strong>, se convertirá automáticamente.</div>
+                  <div class="validation-status" id="validationStatus"></div>
                 </div>
-                <div class="help-text">Marca "Solo Latino" si deseas excluir streams que no sean en español</div>
+
+                <div class="field">
+                  <label>&nbsp;</label>
+                  <button type="button" class="primary" onclick="testAioLink()" id="validateBtn">Validar Link</button>
+                  <div class="qr-note" style="margin-top: 12px;">
+                    <div class="result-label">Direct Manifest URL</div>
+                    <div id="directUrlPreview" style="color:#dce4f6; font-size:12px; word-break:break-all;">https://aiostream.axonim.lat/stremio/35099f5e-.../stream</div>
+                    <div>La URL final se generará con tu servidor actual y quedará lista para DebridStream.</div>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label for="maxStreams">Máximo de Resultados</label>
-                <input type="number" id="maxStreams" value="8" min="0">
-                <div class="help-text">Limite de streams a mostrar (0 = sin límite)</div>
+              <div class="mini-grid">
+                <div class="mini-panel">
+                  <label>Preferencias de Idioma</label>
+                  <div class="checkbox-group" style="margin-top:10px;">
+                    <label class="check"><input type="checkbox" id="preferLatino" checked> <span>Preferir Latino</span></label>
+                    <label class="check"><input type="checkbox" id="latinoOnly"> <span>Solo Latino</span></label>
+                  </div>
+                  <div class="hint" style="margin-top:10px;">Marca “Solo Latino” si deseas excluir streams que no sean en español.</div>
+                </div>
+
+                <div class="mini-panel">
+                  <label for="maxStreams">Máximo de Resultados</label>
+                  <input type="number" id="maxStreams" class="input" value="8" min="0">
+                  <div class="hint" style="margin-top:10px;">Límite de streams a mostrar. Usa 0 para no limitar.</div>
+                </div>
               </div>
-            </div>
 
-            <div style="margin-top:12px">
-              <label for="markers">Marcadores de Latino</label>
-              <input type="text" id="markers" value="latino,lat,castellano,espanol,español" required>
-              <div class="help-text">Palabras clave separadas por comas para detectar streams en español</div>
-            </div>
+              <div class="field">
+                <label for="markers">Marcadores de Latino</label>
+                <input type="text" id="markers" class="input" value="latino,lat,castellano,espanol,español" required>
+                <div class="hint">Palabras clave separadas por comas para detectar streams en español.</div>
+              </div>
 
-            <div class="button-group" style="margin-top:18px">
-              <button type="submit" class="btn-primary" id="generateBtn" disabled>Generar Addon</button>
-              <button type="reset" class="btn-ghost" onclick="resetValidation()">Limpiar</button>
-            </div>
-          </form>
+              <div class="button-group">
+                <button type="submit" class="primary" id="generateBtn" disabled>Generar Addon</button>
+                <button type="reset" class="ghost" onclick="resetValidation()">Limpiar</button>
+              </div>
+            </form>
+          </article>
         </div>
 
-        <div class="card" id="resultSection" style="display:none">
-          <div class="result-title">✅ Tu Addon Generado</div>
-          <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start">
+        <aside class="result-card" id="resultSection">
+          <div class="section-head" style="margin-bottom: 16px;">
             <div>
-              <div style="font-weight:600;color:var(--muted);margin-bottom:6px">ID del Addon:</div>
+              <h2 class="section-title">Tu addon generado</h2>
+              <p class="section-copy">Copia el ID, la URL o el JSON según lo que necesites para instalar o depurar.</p>
+            </div>
+          </div>
+
+          <div class="result-list">
+            <div class="result-item">
+              <div class="result-label">ID del Addon</div>
               <div class="result-box" id="addonId"></div>
+              <div class="result-actions" style="margin-top: 10px;">
+                <button class="copy-btn" type="button" onclick="copyToClipboard('addonId', this)">Copiar ID</button>
+              </div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="btn btn-ghost" onclick="copyToClipboard('addonId')">Copiar ID</button>
+
+            <div class="result-item">
+              <div class="result-label">URL para DebridStream</div>
+              <div class="result-box" id="configUrl"></div>
+              <div class="result-actions" style="margin-top: 10px;">
+                <button class="copy-btn" type="button" onclick="copyToClipboard('configUrl', this)">Copiar URL</button>
+              </div>
+            </div>
+
+            <div class="result-item">
+              <div class="result-label">Configuración JSON</div>
+              <div class="result-box" id="configJson" style="max-height: 300px;"></div>
+              <div class="result-actions" style="margin-top: 10px;">
+                <button class="copy-btn" type="button" onclick="copyToClipboard('configJson', this)">Copiar JSON</button>
+                <button class="copy-btn" type="button" onclick="downloadConfig()">Descargar</button>
+              </div>
+            </div>
+
+            <div class="qr-note">
+              <div class="result-label">Código QR</div>
+              <div>Se mantiene deshabilitado para evitar dependencias externas. Si quieres, puedo agregar un generador local sin CDN.</div>
             </div>
           </div>
-
-          <div style="margin-top:12px">
-            <div style="font-weight:600;color:var(--muted);margin-bottom:6px">URL para DebridStream (configUrl):</div>
-            <div class="result-box" id="configUrl"></div>
-            <div style="margin-top:8px"><button class="btn btn-ghost" onclick="copyToClipboard('configUrl')">Copiar URL</button></div>
-          </div>
-
-          <div style="margin-top:12px">
-            <div style="font-weight:600;color:var(--muted);margin-bottom:6px">Configuración JSON para DebridStream:</div>
-            <div class="result-box" id="configJson" style="max-height:260px;overflow:auto"></div>
-            <div style="margin-top:8px;display:flex;gap:8px"><button class="btn btn-ghost" onclick="copyToClipboard('configJson')">Copiar JSON</button><button class="btn btn-ghost" onclick="downloadConfig()">Descargar</button></div>
-          </div>
-        </div>
-      </div>
+        </aside>
+      </section>
     </main>
   </div>
 
@@ -476,23 +794,28 @@
       document.getElementById('configUrl').innerText = data.configUrl;
       document.getElementById('configJson').innerText = JSON.stringify(data.debridConfig, null, 2);
 
-      document.getElementById('qrCode').innerText = 'QR deshabilitado. URL lista para copiar: ' + data.configUrl;
+      const preview = document.getElementById('directUrlPreview');
+      if (preview) preview.innerText = data.configUrl;
 
       resultSection.classList.add('show');
       resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    function copyToClipboard(elementId) {
+    function copyToClipboard(elementId, buttonEl) {
       const element = document.getElementById(elementId);
       const text = element.innerText;
       navigator.clipboard.writeText(text).then(() => {
-        const btn = event.target;
-        const originalText = btn.innerText;
-        btn.innerText = '✓ Copiado!';
-        btn.classList.add('copied');
+        const btn = buttonEl || document.activeElement;
+        const originalText = btn && btn.innerText ? btn.innerText : 'Copiar';
+        if (btn) {
+          btn.innerText = '✓ Copiado!';
+          btn.classList.add('copied');
+        }
         setTimeout(() => {
-          btn.innerText = originalText;
-          btn.classList.remove('copied');
+          if (btn) {
+            btn.innerText = originalText;
+            btn.classList.remove('copied');
+          }
         }, 2000);
       });
     }
