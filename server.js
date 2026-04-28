@@ -428,6 +428,39 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Serve static assets (images, css, js) from /assets
+  if (pathname.startsWith('/assets/') && method === 'GET') {
+    try {
+      const assetPath = join(__dirname, pathname);
+      if (!existsSync(assetPath)) {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end('Not found');
+        return;
+      }
+
+      const ext = assetPath.split('.').pop().toLowerCase();
+      const mime = {
+        png: 'image/png',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        svg: 'image/svg+xml',
+        css: 'text/css',
+        js: 'application/javascript',
+        ico: 'image/x-icon',
+        json: 'application/json'
+      }[ext] || 'application/octet-stream';
+
+      const data = readFileSync(assetPath);
+      res.writeHead(200, { 'content-type': mime, 'cache-control': 'public, max-age=86400' });
+      res.end(data);
+      return;
+    } catch (err) {
+      res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('Error reading asset');
+      return;
+    }
+  }
+
   // Health endpoint
   if (pathname === "/health" && method === "GET") {
     sendJson(res, 200, { ok: true, service: "aiostreams-debrid-bridge", addons: countAddonJsonFiles() });
