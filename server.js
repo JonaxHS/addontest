@@ -64,6 +64,86 @@ function clearStreamCache() {
   streamCache.clear();
 }
 
+// Prefetch next episode in background
+async function triggerEpisodePrefetch(configId, currentPattern, config, aioBase) {
+  try {
+    // Only prefetch for series format: series/imdbId:season:episode
+    const match = currentPattern.match(/^series\/(.+):(\d+):(\d+)$/);
+    if (!match) return; // Not a series or invalid format
+    
+    const [, imdbId, season, episode] = match;
+    const nextEpisode = String(Number(episode) + 1);
+    const nextPattern = `series/${imdbId}:${season}:${nextEpisode}`;
+    
+    // Check if already cached
+    if (configId && getCachedStreams(configId, nextPattern)) {
+      console.log(`[PREFETCH] ${nextPattern} already cached, skipping`);
+      return;
+    }
+    
+    // Fetch next episode streams in background (don't await)
+    const upstreamUrl = `${aioBase}/${nextPattern}.json`;
+    console.log(`[PREFETCH] Starting: ${nextPattern}`);
+    
+    fetch(upstreamUrl, { headers: { accept: "application/json" } })
+      .then(res => res.ok ? res.json() : Promise.reject("HTTP" + res.status))
+      .then(payload => {
+        const streams = Array.isArray(payload?.streams) ? payload.streams : [];
+        const dedupe = new Set();
+        const converted = [];
+        
+        for (const stream of streams) {
+          const infoHash = extractInfoHash(stream);
+          if (!infoHash || dedupe.has(infoHash)) continue;
+          dedupe.add(infoHash);
+          
+          const upstreamLabel = normalizeName(stream, `AIOStreams ${nextPattern}`);
+          const provider = parseProvider(stream);
+          const qualityLine = parseQualityLine(stream);
+          const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : upstreamLabel;
+          const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
+          const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
+          const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
+          
+          converted.push({
+            name: `AIOStreams Bridge\n${qualityLine}`,
+            title: upstreamLabel,
+            infoHash,
+            fileIdx,
+            behaviorHints: { bingeGroup, filename, videoSize },
+            size: videoSize,
+            sourceUrl: typeof stream?.url === "string" ? stream.url : ""
+          });
+        }
+        
+        // Apply same filtering as main query
+        let output = converted;
+        if (config.selectedLanguages && config.selectedLanguages.length > 0 && config.searchMarkers) {
+          const matchingStreams = converted.filter(item => hasPreferredLatino(item, config.searchMarkers));
+          if (matchingStreams.length > 0) {
+            output = matchingStreams;
+          } else if (config.fallbackAllLanguages) {
+            output = converted;
+          } else {
+            output = [];
+          }
+        }
+        if (config.maxStreams > 0) {
+          output = output.slice(0, config.maxStreams);
+        }
+        
+        // Cache the prefetched results
+        if (configId && output.length > 0) {
+          setCachedStreams(configId, nextPattern, { streams: output, count: output.length, upstreamUrl });
+          console.log(`[PREFETCH] ✓ Cached ${nextPattern}: ${output.length} streams`);
+        }
+      })
+      .catch(err => console.log(`[PREFETCH] ✗ Failed ${nextPattern}: ${err}`));
+  } catch (err) {
+    console.log(`[PREFETCH] Error: ${err}`);
+  }
+}
+
 // Constants
 const MAX_POST_SIZE = 10 * 1024 * 1024; // 10MB
 const ID_COLLISION_CHECK_RETRIES = 3;
@@ -507,6 +587,8 @@ async function handleStream(req, res, pathname, config, configId) {
     // Cache results before sending
     if (configId) {
       setCachedStreams(configId, searchPattern, { streams: output, count: output.length, upstreamUrl });
+      // Trigger prefetch of next episode in background
+      triggerEpisodePrefetch(configId, searchPattern, cfg, cfg.aioBase);
     }
 
     console.log(`[${reqId}] Final response: ${output.length} streams`);
