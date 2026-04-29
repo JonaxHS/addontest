@@ -1,48 +1,32 @@
 [
-  
   {
-    "name": "Axonim AIO Bridge",
+    "name": "AIOStreams Bridge",
     "type": "json_imdb",
-    "itemType": "info_hash",
-    "imdbType": "movie",
-    "jsonResultsKey": "streams",
-    "infoHashTargetKey": "infoHash",
-    "torrentNameTargetKey": "title",
-    "sizeAttr": "behaviorHints.videoSize",
-    "searchPattern": {
-      "movie": "movie/%imdbId",
-      "tv": "series/%imdbId:%season:%episode"
-    },
-    "url": "https://fotos.axonim.lat/stream/%searchPattern.json"
-  },
-    {
-    "name": "Torrentio",
-    "type": "json_imdb",
-    "imdbType": "movie",
-    "itemType": "info_hash",
-    "infoHashTargetKey": "infoHash",
-    "jsonResultsKey": "streams",
-    "torrentNameTargetKey": "title",
-    "sizeAttr": "behaviorHints.videoSize",
-    "searchPattern": {
-      "movie": "movie/%imdbId",
-      "tv": "series/%imdbId:%season:%episode"
-    },
-    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
-  },
-  {
-    "name": "Axonim AIO Bridge",
-    "type": "json_imdb",
-    "itemType": "info_hash",
     "imdbType": "tv",
-    "jsonResultsKey": "streams",
+    "itemType": "info_hash",
     "infoHashTargetKey": "infoHash",
+    "jsonResultsKey": "streams",
     "torrentNameTargetKey": "title",
-    "sizeAttr": "size",
+    "sizeAttr": "behaviorHints.videoSize",
     "searchPattern": {
       "movie": "movie/%imdbId",
       "tv": "series/%imdbId:%season:%episode"
     },
-    "url": "http://144.217.164.119:8787/stream/%searchPattern.json"
+    "url": "https://aiodebrid.axonim.lat/custom/moka5fq8-hdmgagvyq59/stream/%searchPattern.json"
+  },
+  {
+    "name": "AIOStreams Bridge",
+    "type": "json_imdb",
+    "imdbType": "movie",
+    "itemType": "info_hash",
+    "infoHashTargetKey": "infoHash",
+    "jsonResultsKey": "streams",
+    "torrentNameTargetKey": "title",
+    "sizeAttr": "behaviorHints.videoSize",
+    "searchPattern": {
+      "movie": "movie/%imdbId",
+      "tv": "series/%imdbId:%season:%episode"
+    },
+    "url": "https://aiodebrid.axonim.lat/custom/moka5fq8-hdmgagvyq59/stream/%searchPattern.json"
   }
 ]
