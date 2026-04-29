@@ -30,6 +30,40 @@ let cachedHtml = null;
 let cachedHtmlTime = 0;
 const HTML_CACHE_TTL = 60000; // 1 minute
 
+// Cache stream results in memory with TTL
+let streamCache = new Map(); // key: "${configId}:${searchPattern}" -> { streams, upstreamUrl, count, timestamp }
+const STREAM_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
+
+function getStreamCacheKey(configId, searchPattern) {
+  return `${configId}:${searchPattern}`;
+}
+
+function getCachedStreams(configId, searchPattern) {
+  const key = getStreamCacheKey(configId, searchPattern);
+  const cached = streamCache.get(key);
+  if (!cached) return null;
+  
+  const now = Date.now();
+  if (now - cached.timestamp > STREAM_CACHE_TTL) {
+    streamCache.delete(key);
+    return null;
+  }
+  
+  return cached;
+}
+
+function setCachedStreams(configId, searchPattern, data) {
+  const key = getStreamCacheKey(configId, searchPattern);
+  streamCache.set(key, {
+    ...data,
+    timestamp: Date.now()
+  });
+}
+
+function clearStreamCache() {
+  streamCache.clear();
+}
+
 // Constants
 const MAX_POST_SIZE = 10 * 1024 * 1024; // 10MB
 const ID_COLLISION_CHECK_RETRIES = 3;
@@ -337,7 +371,7 @@ function hasPreferredLatino(stream, markers = LATINO_MARKERS) {
   });
 }
 
-async function handleStream(req, res, pathname, config) {
+async function handleStream(req, res, pathname, config, configId) {
   try {
     const cfg = config || {
       aioBase: AIO_BASE,
@@ -352,6 +386,15 @@ async function handleStream(req, res, pathname, config) {
     if (!searchPattern) {
       sendJson(res, 400, { error: "Missing search pattern." });
       return;
+    }
+
+    // Check cache first if configId provided
+    if (configId) {
+      const cached = getCachedStreams(configId, searchPattern);
+      if (cached) {
+        sendJson(res, 200, { streams: cached.streams, count: cached.count, upstreamUrl: cached.upstreamUrl });
+        return;
+      }
     }
 
     const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
@@ -444,6 +487,11 @@ async function handleStream(req, res, pathname, config) {
 
     if (cfg.maxStreams > 0) {
       output = output.slice(0, cfg.maxStreams);
+    }
+
+    // Cache results before sending
+    if (configId) {
+      setCachedStreams(configId, searchPattern, { streams: output, count: output.length, upstreamUrl });
     }
 
     sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
@@ -755,7 +803,7 @@ const server = createServer(async (req, res) => {
       try {
         // Mark instance as accessed for metrics
         await markInstanceAccessed(configId);
-        await handleStream(req, res, `/stream/${streamPath}`, entry.config);
+        await handleStream(req, res, `/stream/${streamPath}`, entry.config, configId);
       } catch (error) {
         sendJson(res, 500, { error: "Handler error", detail: String(error) });
       }
