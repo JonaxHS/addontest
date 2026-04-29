@@ -303,6 +303,19 @@ function normalizeForMatch(text) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function stripInfoHashLine(text) {
+  return String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.toLowerCase().startsWith("infohash:"))
+    .join("\n");
+}
+
+function normalizeProviderKey(provider) {
+  const normalized = normalizeForMatch(provider).replace(/[^a-z0-9]+/g, "").trim();
+  return normalized || "aiostreams";
+}
+
 function generateConfigId() {
   // Include timestamp + random to minimize collision risk
   const timestamp = Date.now().toString(36);
@@ -397,14 +410,18 @@ async function handleStream(req, res, pathname, config) {
       const upstreamLabel = normalizeName(stream, `AIOStreams ${searchPattern}`);
       const provider = parseProvider(stream);
       const qualityLine = parseQualityLine(stream);
-      const filename = upstreamLabel;
-      const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
+      const behaviorFilename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename.trim() : "";
+      const cleanedFilename = stripInfoHashLine(behaviorFilename || upstreamLabel);
+      const filename = cleanedFilename || upstreamLabel;
+      const upstreamBingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : "";
+      const bingeGroup = upstreamBingeGroup || `${normalizeProviderKey(provider)}|${infoHash}`;
       const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
       const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
+      const cleanedTitle = stripInfoHashLine(upstreamLabel);
 
       converted.push({
-        name: `${provider} • ${qualityLine}`.replace(/[\r\n]/g, ' '),
-        title: upstreamLabel,
+        name: `${provider}\n${qualityLine}`,
+        title: cleanedTitle || upstreamLabel,
         infoHash,
         fileIdx,
         behaviorHints: {
