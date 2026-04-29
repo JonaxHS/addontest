@@ -397,7 +397,7 @@ async function handleStream(req, res, pathname, config) {
       const upstreamLabel = normalizeName(stream, `AIOStreams ${searchPattern}`);
       const provider = parseProvider(stream);
       const qualityLine = parseQualityLine(stream);
-      const filename = upstreamLabel;
+      const filename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename : upstreamLabel;
       const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
       const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
       const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
