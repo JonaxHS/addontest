@@ -417,11 +417,26 @@ async function handleStream(req, res, pathname, config) {
       const bingeGroup = upstreamBingeGroup || `${normalizeProviderKey(provider)}|${infoHash}`;
       const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
       const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
-      const cleanedTitle = stripInfoHashLine(upstreamLabel);
+      const rawTitle = typeof stream?.title === 'string' ? stream.title : upstreamLabel;
+      const cleanedTitle = stripInfoHashLine(rawTitle);
+
+      // Build display title similar to official manifests:
+      // Line 1: filename (if available)
+      // Line 2+: cleaned upstream title (without InfoHash)
+      // Last line: metadata (size + provider)
+      const titleLines = [];
+      if (filename) titleLines.push(filename.split('\n').map(l=>l.trim()).filter(Boolean).join(' '));
+      if (cleanedTitle) {
+        const ctLines = cleanedTitle.split('\n').map(l => l.trim()).filter(Boolean);
+        // Avoid duplicating filename
+        if (!titleLines.includes(ctLines[0])) titleLines.push(ctLines.join(' \n'));
+      }
+      const metaLine = `💾 ${formatSize(videoSize)} ⚙️ ${provider}`.trim();
+      if (metaLine) titleLines.push(metaLine);
 
       converted.push({
         name: `${provider}\n${qualityLine}`,
-        title: cleanedTitle || upstreamLabel,
+        title: titleLines.join('\n'),
         infoHash,
         fileIdx,
         behaviorHints: {
