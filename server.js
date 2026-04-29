@@ -403,7 +403,7 @@ async function handleStream(req, res, pathname, config) {
       const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
 
       converted.push({
-        name: `${provider}\n${qualityLine}`,
+        name: `${provider} • ${qualityLine}`.replace(/[\r\n]/g, ' '),
         title: upstreamLabel,
         infoHash,
         fileIdx,
