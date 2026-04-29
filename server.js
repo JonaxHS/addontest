@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +25,15 @@ const LEGACY_CONFIG_FILE = join(DATA_DIR, 'configs.json');
 // In-memory store for generated configurations. Each entry: id -> { config, meta }
 let configStore = new Map();
 
+// Cache HTML in memory with timestamp
+let cachedHtml = null;
+let cachedHtmlTime = 0;
+const HTML_CACHE_TTL = 60000; // 1 minute
+
+// Constants
+const MAX_POST_SIZE = 10 * 1024 * 1024; // 10MB
+const ID_COLLISION_CHECK_RETRIES = 3;
+
 function ensureDataDir() {
   try {
     if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -37,7 +47,7 @@ function getAddonFilePath(id) {
   return join(ADDONS_DIR, `${id}.json`);
 }
 
-function saveAddonFile(id, entry) {
+async function saveAddonFile(id, entry) {
   try {
     ensureDataDir();
     const payload = {
@@ -45,7 +55,7 @@ function saveAddonFile(id, entry) {
       config: entry.config,
       meta: entry.meta || { createdAt: Date.now(), lastAccess: null }
     };
-    writeFileSync(getAddonFilePath(id), JSON.stringify(payload, null, 2), 'utf8');
+    await writeFile(getAddonFilePath(id), JSON.stringify(payload, null, 2), 'utf8');
   } catch (err) {
     console.error('Error saving addon file:', err);
   }
@@ -83,23 +93,23 @@ function loadConfigs() {
   }
 }
 
-function markInstanceCreated(id) {
+async function markInstanceCreated(id) {
   const now = Date.now();
   // Ensure meta exists on stored config
   const entry = configStore.get(id);
   if (entry) {
     entry.meta = { createdAt: now, lastAccess: null };
-    saveAddonFile(id, entry);
+    await saveAddonFile(id, entry);
   }
 }
 
-function markInstanceAccessed(id) {
+async function markInstanceAccessed(id) {
   const now = Date.now();
   const stored = configStore.get(id);
   if (stored) {
     stored.meta = stored.meta || { createdAt: now, lastAccess: now };
     stored.meta.lastAccess = now;
-    saveAddonFile(id, stored);
+    await saveAddonFile(id, stored);
   }
 }
 
@@ -117,10 +127,19 @@ function countAddonJsonFiles() {
 // Load persisted configs at startup (if any)
 loadConfigs();
 
-// Load HTML from config-ui.html file
-function getConfigHtml() {
+// Load HTML from config-ui.html file with caching
+async function getConfigHtml() {
+  const now = Date.now();
+  // Return cached version if still valid
+  if (cachedHtml && (now - cachedHtmlTime) < HTML_CACHE_TTL) {
+    return cachedHtml;
+  }
+  
   try {
-    return readFileSync(join(__dirname, 'config-ui.html'), 'utf8');
+    const html = await readFile(join(__dirname, 'config-ui.html'), 'utf8');
+    cachedHtml = html;
+    cachedHtmlTime = now;
+    return html;
   } catch (error) {
     console.error("Error loading config-ui.html:", error);
     return "<h1>Error loading configuration UI</h1>";
@@ -285,7 +304,24 @@ function normalizeForMatch(text) {
 }
 
 function generateConfigId() {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  // Include timestamp + random to minimize collision risk
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}-${random}`;
+}
+
+function ensureUniqueConfigId() {
+  // Generate ID and verify it's not already in use
+  for (let i = 0; i < ID_COLLISION_CHECK_RETRIES; i++) {
+    const id = generateConfigId();
+    if (!configStore.has(id)) {
+      return id;
+    }
+  }
+  // Fallback: use crypto-based ID if collision occurs
+  // (extremely rare, but handle just in case)
+  const crypto = require('crypto');
+  return crypto.randomBytes(16).toString('hex');
 }
 
 function hasPreferredLatino(stream, markers = LATINO_MARKERS) {
@@ -423,8 +459,9 @@ const server = createServer(async (req, res) => {
 
   // Serve HTML config generator at root
   if (pathname === "/" && method === "GET") {
+    const html = await getConfigHtml();
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(getConfigHtml());
+    res.end(html);
     return;
   }
 
@@ -502,8 +539,20 @@ const server = createServer(async (req, res) => {
   // API: Generate custom configuration
   if (pathname === "/api/generate-config" && method === "POST") {
     let body = "";
-    req.on("data", (chunk) => (body += chunk));
-    req.on("end", () => {
+    let bodySize = 0;
+    
+    req.on("data", (chunk) => {
+      bodySize += chunk.length;
+      if (bodySize > MAX_POST_SIZE) {
+        req.pause();
+        sendJson(res, 413, { error: "Request too large", max: MAX_POST_SIZE });
+        req.connection.destroy();
+        return;
+      }
+      body += chunk;
+    });
+    
+    req.on("end", async () => {
       try {
         const payload = JSON.parse(body);
         let { serverUrl, aioLink, languages, markers, maxStreams, fallbackAllLanguages, useAioFiltering } = payload;
@@ -530,7 +579,7 @@ const server = createServer(async (req, res) => {
           aioLink = aioLink.replace(/\/$/, "") + "/stream";
         }
 
-        const configId = generateConfigId();
+        const configId = ensureUniqueConfigId();
         const markerList = markers.split(",").map((m) => m.trim()).filter(Boolean);
         const languageList = languages.map((l) => typeof l === 'string' ? l.trim().toLowerCase() : '').filter(Boolean);
 
@@ -545,7 +594,7 @@ const server = createServer(async (req, res) => {
 
         // Store config in-memory with meta and persist to its own JSON file
         configStore.set(configId, { config, meta: { createdAt: Date.now(), lastAccess: null } });
-        markInstanceCreated(configId);
+        await markInstanceCreated(configId);
 
         let baseUrl;
         if (serverUrl && /^https?:\/\//i.test(serverUrl)) {
@@ -705,7 +754,7 @@ const server = createServer(async (req, res) => {
 
       try {
         // Mark instance as accessed for metrics
-        markInstanceAccessed(configId);
+        await markInstanceAccessed(configId);
         await handleStream(req, res, `/stream/${streamPath}`, entry.config);
       } catch (error) {
         sendJson(res, 500, { error: "Handler error", detail: String(error) });
