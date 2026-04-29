@@ -32,7 +32,7 @@ const HTML_CACHE_TTL = 60000; // 1 minute
 
 // Cache stream results in memory with TTL
 let streamCache = new Map(); // key: "${configId}:${searchPattern}" -> { streams, upstreamUrl, count, timestamp }
-const STREAM_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
+const STREAM_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 function getStreamCacheKey(configId, searchPattern) {
   return `${configId}:${searchPattern}`;
