@@ -303,19 +303,6 @@ function normalizeForMatch(text) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function stripInfoHashLine(text) {
-  return String(text || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.toLowerCase().startsWith("infohash:"))
-    .join("\n");
-}
-
-function normalizeProviderKey(provider) {
-  const normalized = normalizeForMatch(provider).replace(/[^a-z0-9]+/g, "").trim();
-  return normalized || "aiostreams";
-}
-
 function generateConfigId() {
   // Include timestamp + random to minimize collision risk
   const timestamp = Date.now().toString(36);
@@ -410,33 +397,14 @@ async function handleStream(req, res, pathname, config) {
       const upstreamLabel = normalizeName(stream, `AIOStreams ${searchPattern}`);
       const provider = parseProvider(stream);
       const qualityLine = parseQualityLine(stream);
-      const behaviorFilename = typeof stream?.behaviorHints?.filename === "string" ? stream.behaviorHints.filename.trim() : "";
-      const cleanedFilename = stripInfoHashLine(behaviorFilename || upstreamLabel);
-      const filename = cleanedFilename || upstreamLabel;
-      const upstreamBingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : "";
-      const bingeGroup = upstreamBingeGroup || `${normalizeProviderKey(provider)}|${infoHash}`;
+      const filename = upstreamLabel;
+      const bingeGroup = typeof stream?.behaviorHints?.bingeGroup === "string" ? stream.behaviorHints.bingeGroup : `${provider}|${qualityLine}`;
       const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
       const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
-      const rawTitle = typeof stream?.title === 'string' ? stream.title : upstreamLabel;
-      const cleanedTitle = stripInfoHashLine(rawTitle);
-
-      // Build display title similar to official manifests:
-      // Line 1: filename (if available)
-      // Line 2+: cleaned upstream title (without InfoHash)
-      // Last line: metadata (size + provider)
-      const titleLines = [];
-      if (filename) titleLines.push(filename.split('\n').map(l=>l.trim()).filter(Boolean).join(' '));
-      if (cleanedTitle) {
-        const ctLines = cleanedTitle.split('\n').map(l => l.trim()).filter(Boolean);
-        // Avoid duplicating filename
-        if (!titleLines.includes(ctLines[0])) titleLines.push(ctLines.join(' \n'));
-      }
-      const metaLine = `💾 ${formatSize(videoSize)} ⚙️ ${provider}`.trim();
-      if (metaLine) titleLines.push(metaLine);
 
       converted.push({
         name: `${provider}\n${qualityLine}`,
-        title: titleLines.join('\n'),
+        title: upstreamLabel,
         infoHash,
         fileIdx,
         behaviorHints: {
