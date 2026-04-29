@@ -402,8 +402,8 @@ async function handleStream(req, res, pathname, config) {
       const fileIdx = Number.isInteger(stream?.fileIdx) ? stream.fileIdx : 0;
       const videoSize = Number(stream?.behaviorHints?.videoSize || 0);
 
-      converted.push({
-        name: `${provider}\n${qualityLine}`,
+        converted.push({
+          name: `AIOStreams Bridge\n${qualityLine}`,
         title: upstreamLabel,
         infoHash,
         fileIdx,
