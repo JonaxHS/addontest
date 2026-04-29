@@ -451,6 +451,20 @@ function hasPreferredLatino(stream, markers = LATINO_MARKERS) {
   });
 }
 
+// Check if stream has partial marker match (e.g., "latino-hd" contains "latino")
+function hasPartialMarkerMatch(stream, markers = LATINO_MARKERS) {
+  const haystack = normalizeForMatch(
+    `${stream?.name || ""}\n${stream?.title || ""}\n${stream?.behaviorHints?.filename || ""}`
+  );
+  
+  return markers.some((rawMarker) => {
+    const marker = normalizeForMatch(rawMarker);
+    // Look for marker as a word boundary or with separators (latino-hd, latino_audio, etc)
+    const pattern = new RegExp(`\\b${marker}[a-z0-9\\-_]*|[a-z0-9\\-_]*${marker}\\b`);
+    return pattern.test(haystack);
+  });
+}
+
 async function handleStream(req, res, pathname, config, configId) {
   try {
     const cfg = config || {
@@ -558,23 +572,53 @@ async function handleStream(req, res, pathname, config, configId) {
       return;
     }
 
-    // Filter by selected languages/search markers
+    // Filter by selected languages/search markers - cascading strategy
     if (cfg.selectedLanguages && cfg.selectedLanguages.length > 0 && cfg.searchMarkers) {
-      const matchingStreams = converted.filter((item) => {
+      // Level 1: Exact marker matches (complete word or substring)
+      const exactMatches = converted.filter((item) => {
         return hasPreferredLatino(item, cfg.searchMarkers);
       });
-      console.log(`[${reqId}] Language filter: ${converted.length} → ${matchingStreams.length} matching`);
+      console.log(`[${reqId}] Language filter L1 (exact): ${converted.length} → ${exactMatches.length}`);
 
-      // Use matching streams if any found, otherwise apply fallback logic
-      if (matchingStreams.length > 0) {
-        output = matchingStreams;
+      // Level 2: Partial marker matches (with separators: latino-hd, latino_audio)
+      let partialMatches = [];
+      if (exactMatches.length === 0) {
+        partialMatches = converted.filter((item) => {
+          return hasPartialMarkerMatch(item, cfg.searchMarkers);
+        });
+        console.log(`[${reqId}] Language filter L2 (partial with separators): ${converted.length} → ${partialMatches.length}`);
+      }
+
+      // Check if all matched streams have "⏳ Click para descargar" pattern
+      const checkAllHaveClickPattern = (streams) => {
+        return streams.length > 0 && streams.every((item) => {
+          const title = item?.title || '';
+          return /⏳|Click para descargar/i.test(title);
+        });
+      };
+
+      // Determine final output
+      if (exactMatches.length > 0) {
+        output = exactMatches;
+        // If all exact matches have the "Click para descargar" pattern, allow other languages too
+        if (checkAllHaveClickPattern(exactMatches)) {
+          console.log(`[${reqId}] All exact matches require click-to-download, allowing other languages`);
+          output = converted; // Return all available streams
+        }
+      } else if (partialMatches.length > 0) {
+        output = partialMatches;
+        // If all partial matches have the "Click para descargar" pattern, allow other languages
+        if (checkAllHaveClickPattern(partialMatches)) {
+          console.log(`[${reqId}] All partial matches require click-to-download, allowing other languages`);
+          output = converted; // Return all available streams
+        }
       } else if (cfg.fallbackAllLanguages) {
-        // No matching results - use fallback: return all available streams
-        console.log(`[${reqId}] No matches, fallback=true, using all ${converted.length}`);
+        // Level 3: No marker matches at all - use fallback: return all available streams
+        console.log(`[${reqId}] Language filter L3 (no matches, fallback=true, using all ${converted.length})`);
         output = converted;
       } else {
         // No matching results and no fallback - return empty
-        console.log(`[${reqId}] No matches, fallback=false, returning empty`);
+        console.log(`[${reqId}] Language filter L3 (no matches, fallback=false, returning empty)`);
         output = [];
       }
     }
