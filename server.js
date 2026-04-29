@@ -379,7 +379,7 @@ async function handleStream(req, res, pathname, config, configId) {
       selectedLanguages: LATINO_MARKERS.length > 0 ? ['español', 'latino'] : [],
       maxStreams: MAX_STREAMS,
       searchMarkers: LATINO_MARKERS,
-      fallbackAllLanguages: false
+      fallbackAllLanguages: true  // Default endpoint uses fallback (return all if no matches)
     };
 
     const searchPattern = pathname.slice("/stream/".length, -".json".length);
