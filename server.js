@@ -597,19 +597,37 @@ async function handleStream(req, res, pathname, config, configId) {
         });
       };
 
+      // Check if any matched stream has "⚡ rayo" pattern (fast/premium)
+      const hasLightningBoltPattern = (streams) => {
+        return streams.some((item) => {
+          const title = item?.title || '';
+          return /⚡/i.test(title);
+        });
+      };
+
       // Determine final output
       if (exactMatches.length > 0) {
         output = exactMatches;
-        // If all exact matches have the "Click para descargar" pattern, allow other languages too
-        if (checkAllHaveClickPattern(exactMatches)) {
-          console.log(`[${reqId}] All exact matches require click-to-download, allowing other languages`);
+        // If any exact match has ⚡, DO NOT allow other languages
+        if (hasLightningBoltPattern(exactMatches)) {
+          console.log(`[${reqId}] Found ⚡ (lightning) patterns in exact matches, restricting to latino only`);
+          // Keep exactMatches as is, do not allow other languages
+        }
+        // If ALL exact matches have ⏳ (and no ⚡), allow other languages
+        else if (checkAllHaveClickPattern(exactMatches)) {
+          console.log(`[${reqId}] All exact matches require click-to-download (no ⚡), allowing other languages`);
           output = converted; // Return all available streams
         }
       } else if (partialMatches.length > 0) {
         output = partialMatches;
-        // If all partial matches have the "Click para descargar" pattern, allow other languages
-        if (checkAllHaveClickPattern(partialMatches)) {
-          console.log(`[${reqId}] All partial matches require click-to-download, allowing other languages`);
+        // If any partial match has ⚡, DO NOT allow other languages
+        if (hasLightningBoltPattern(partialMatches)) {
+          console.log(`[${reqId}] Found ⚡ (lightning) patterns in partial matches, restricting to latino only`);
+          // Keep partialMatches as is, do not allow other languages
+        }
+        // If ALL partial matches have ⏳ (and no ⚡), allow other languages
+        else if (checkAllHaveClickPattern(partialMatches)) {
+          console.log(`[${reqId}] All partial matches require click-to-download (no ⚡), allowing other languages`);
           output = converted; // Return all available streams
         }
       } else if (cfg.fallbackAllLanguages) {
