@@ -388,13 +388,21 @@ async function handleStream(req, res, pathname, config, configId) {
       return;
     }
 
+    // Debug logging
+    const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    console.log(`[${reqId}] Stream request: pattern=${searchPattern}, configId=${configId || 'NONE'}`);
+
     // Check cache first if configId provided
     if (configId) {
       const cached = getCachedStreams(configId, searchPattern);
       if (cached) {
+        console.log(`[${reqId}] Cache HIT: ${cached.streams.length} streams`);
         sendJson(res, 200, { streams: cached.streams, count: cached.count, upstreamUrl: cached.upstreamUrl });
         return;
       }
+      console.log(`[${reqId}] Cache MISS`);
+    } else {
+      console.log(`[${reqId}] No configId - cache disabled`);
     }
 
     const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
@@ -460,9 +468,12 @@ async function handleStream(req, res, pathname, config, configId) {
       });
     }
 
+    console.log(`[${reqId}] After upstream fetch: ${streams.length} upstream → ${converted.length} deduplicated`);
+
     let output = converted;
 
     if (cfg.useAioFiltering) {
+      console.log(`[${reqId}] useAioFiltering=true, returning ${output.length} without further filtering`);
       sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
       return;
     }
@@ -472,21 +483,25 @@ async function handleStream(req, res, pathname, config, configId) {
       const matchingStreams = converted.filter((item) => {
         return hasPreferredLatino(item, cfg.searchMarkers);
       });
+      console.log(`[${reqId}] Language filter: ${converted.length} → ${matchingStreams.length} matching`);
 
       // Use matching streams if any found, otherwise apply fallback logic
       if (matchingStreams.length > 0) {
         output = matchingStreams;
       } else if (cfg.fallbackAllLanguages) {
         // No matching results - use fallback: return all available streams
+        console.log(`[${reqId}] No matches, fallback=true, using all ${converted.length}`);
         output = converted;
       } else {
         // No matching results and no fallback - return empty
+        console.log(`[${reqId}] No matches, fallback=false, returning empty`);
         output = [];
       }
     }
 
     if (cfg.maxStreams > 0) {
       output = output.slice(0, cfg.maxStreams);
+      console.log(`[${reqId}] Max streams limit: ${output.length}`);
     }
 
     // Cache results before sending
@@ -494,6 +509,7 @@ async function handleStream(req, res, pathname, config, configId) {
       setCachedStreams(configId, searchPattern, { streams: output, count: output.length, upstreamUrl });
     }
 
+    console.log(`[${reqId}] Final response: ${output.length} streams`);
     sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
   } catch (error) {
     sendJson(res, 500, { error: "Internal server error", detail: String(error) });
