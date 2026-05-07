@@ -534,19 +534,21 @@ async function handleStream(req, res, pathname, config, configId) {
 
     // Debug logging
     const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const requestStart = Date.now();
     console.log(
       `[${reqId}] Stream request: pattern=${searchPattern}, configId=${configId || 'NONE'}, cacheNs=${cacheNamespace}, ip=${audit.ip}, ua="${audit.userAgent}", referer="${audit.referer}"`
     );
 
     const cached = getCachedStreams(cacheNamespace, searchPattern);
     if (cached) {
-      console.log(`[${reqId}] Cache HIT: ${cached.streams.length} streams`);
+      console.log(`[${reqId}] Cache HIT: ${cached.streams.length} streams duration_ms=${Date.now() - requestStart}`);
       sendJson(res, 200, { streams: cached.streams, count: cached.count, upstreamUrl: cached.upstreamUrl });
       return;
     }
-    console.log(`[${reqId}] Cache MISS`);
+    console.log(`[${reqId}] Cache MISS duration_ms=${Date.now() - requestStart}`);
 
     const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
+    console.log(`[${reqId}] Upstream fetch: ${upstreamUrl}`);
 
     let upstreamResponse;
     try {
@@ -616,7 +618,7 @@ async function handleStream(req, res, pathname, config, configId) {
     if (cfg.useAioFiltering) {
       setCachedStreams(cacheNamespace, searchPattern, { streams: output, count: output.length, upstreamUrl });
       triggerEpisodePrefetch(cacheNamespace, searchPattern, cfg, cfg.aioBase);
-      console.log(`[${reqId}] useAioFiltering=true, returning ${output.length} without further filtering`);
+      console.log(`[${reqId}] useAioFiltering=true, returning ${output.length} without further filtering duration_ms=${Date.now() - requestStart}`);
       sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
       return;
     }
@@ -700,7 +702,7 @@ async function handleStream(req, res, pathname, config, configId) {
     // Trigger prefetch of next episode in background
     triggerEpisodePrefetch(cacheNamespace, searchPattern, cfg, cfg.aioBase);
 
-    console.log(`[${reqId}] Final response: ${output.length} streams`);
+    console.log(`[${reqId}] Final response: in=${streams.length} dedup=${converted.length} out=${output.length} duration_ms=${Date.now() - requestStart}`);
     sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
   } catch (error) {
     sendJson(res, 500, { error: "Internal server error", detail: String(error) });
@@ -850,6 +852,8 @@ const server = createServer(async (req, res) => {
           fallbackAllLanguages: fallbackAllLanguages === true,
           useAioFiltering: useAioFiltering === true
         };
+
+        console.log(`[GEN-CONFIG] created configId=${configId} ip=${getClientIp(req)} serverUrl=${serverUrl} aioBase=${config.aioBase} languages=${config.selectedLanguages.length} markers=${config.searchMarkers.length} fallback=${config.fallbackAllLanguages} useAioFiltering=${config.useAioFiltering}`);
 
         // Store config in-memory with meta and persist to its own JSON file
         configStore.set(configId, { config, meta: { createdAt: Date.now(), lastAccess: null } });
