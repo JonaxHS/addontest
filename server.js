@@ -31,15 +31,15 @@ let cachedHtmlTime = 0;
 const HTML_CACHE_TTL = 60000; // 1 minute
 
 // Cache stream results in memory with TTL
-let streamCache = new Map(); // key: "${configId}:${searchPattern}" -> { streams, upstreamUrl, count, timestamp }
+let streamCache = new Map(); // key: "${cacheNamespace}:${searchPattern}" -> { streams, upstreamUrl, count, timestamp }
 const STREAM_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
-function getStreamCacheKey(configId, searchPattern) {
-  return `${configId}:${searchPattern}`;
+function getStreamCacheKey(cacheNamespace, searchPattern) {
+  return `${cacheNamespace}:${searchPattern}`;
 }
 
-function getCachedStreams(configId, searchPattern) {
-  const key = getStreamCacheKey(configId, searchPattern);
+function getCachedStreams(cacheNamespace, searchPattern) {
+  const key = getStreamCacheKey(cacheNamespace, searchPattern);
   const cached = streamCache.get(key);
   if (!cached) return null;
   
@@ -52,12 +52,27 @@ function getCachedStreams(configId, searchPattern) {
   return cached;
 }
 
-function setCachedStreams(configId, searchPattern, data) {
-  const key = getStreamCacheKey(configId, searchPattern);
+function setCachedStreams(cacheNamespace, searchPattern, data) {
+  const key = getStreamCacheKey(cacheNamespace, searchPattern);
   streamCache.set(key, {
     ...data,
     timestamp: Date.now()
   });
+}
+
+function getCacheNamespace(configId, cfg) {
+  if (configId) return `config:${configId}`;
+
+  const aioBase = String(cfg?.aioBase || '');
+  const useAioFiltering = cfg?.useAioFiltering ? 1 : 0;
+  const selectedLanguages = Array.isArray(cfg?.selectedLanguages) ? cfg.selectedLanguages.join(',') : '';
+  const searchMarkers = Array.isArray(cfg?.searchMarkers)
+    ? cfg.searchMarkers.join(',')
+    : (Array.isArray(cfg?.latinoMarkers) ? cfg.latinoMarkers.join(',') : '');
+  const maxStreams = Number.isFinite(Number(cfg?.maxStreams)) ? Number(cfg.maxStreams) : 0;
+  const fallbackAllLanguages = cfg?.fallbackAllLanguages ? 1 : 0;
+
+  return `default:${aioBase}|${useAioFiltering}|${selectedLanguages}|${searchMarkers}|${maxStreams}|${fallbackAllLanguages}`;
 }
 
 function clearStreamCache() {
@@ -65,7 +80,7 @@ function clearStreamCache() {
 }
 
 // Prefetch next episode in background
-async function triggerEpisodePrefetch(configId, currentPattern, config, aioBase) {
+async function triggerEpisodePrefetch(cacheNamespace, currentPattern, config, aioBase) {
   try {
     // Only prefetch for series format: series/imdbId:season:episode
     const match = currentPattern.match(/^series\/(.+):(\d+):(\d+)$/);
@@ -76,7 +91,7 @@ async function triggerEpisodePrefetch(configId, currentPattern, config, aioBase)
     const nextPattern = `series/${imdbId}:${season}:${nextEpisode}`;
     
     // Check if already cached
-    if (configId && getCachedStreams(configId, nextPattern)) {
+    if (getCachedStreams(cacheNamespace, nextPattern)) {
       console.log(`[PREFETCH] ${nextPattern} already cached, skipping`);
       return;
     }
@@ -133,8 +148,8 @@ async function triggerEpisodePrefetch(configId, currentPattern, config, aioBase)
         }
         
         // Cache the prefetched results
-        if (configId && output.length > 0) {
-          setCachedStreams(configId, nextPattern, { streams: output, count: output.length, upstreamUrl });
+        if (output.length > 0) {
+          setCachedStreams(cacheNamespace, nextPattern, { streams: output, count: output.length, upstreamUrl });
           console.log(`[PREFETCH] ✓ Cached ${nextPattern}: ${output.length} streams`);
         }
       })
@@ -482,22 +497,19 @@ async function handleStream(req, res, pathname, config, configId) {
       return;
     }
 
+    const cacheNamespace = getCacheNamespace(configId, cfg);
+
     // Debug logging
     const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    console.log(`[${reqId}] Stream request: pattern=${searchPattern}, configId=${configId || 'NONE'}`);
+    console.log(`[${reqId}] Stream request: pattern=${searchPattern}, configId=${configId || 'NONE'}, cacheNs=${cacheNamespace}`);
 
-    // Check cache first if configId provided
-    if (configId) {
-      const cached = getCachedStreams(configId, searchPattern);
-      if (cached) {
-        console.log(`[${reqId}] Cache HIT: ${cached.streams.length} streams`);
-        sendJson(res, 200, { streams: cached.streams, count: cached.count, upstreamUrl: cached.upstreamUrl });
-        return;
-      }
-      console.log(`[${reqId}] Cache MISS`);
-    } else {
-      console.log(`[${reqId}] No configId - cache disabled`);
+    const cached = getCachedStreams(cacheNamespace, searchPattern);
+    if (cached) {
+      console.log(`[${reqId}] Cache HIT: ${cached.streams.length} streams`);
+      sendJson(res, 200, { streams: cached.streams, count: cached.count, upstreamUrl: cached.upstreamUrl });
+      return;
     }
+    console.log(`[${reqId}] Cache MISS`);
 
     const upstreamUrl = `${cfg.aioBase}/${searchPattern}.json`;
 
@@ -647,11 +659,9 @@ async function handleStream(req, res, pathname, config, configId) {
     }
 
     // Cache results before sending
-    if (configId) {
-      setCachedStreams(configId, searchPattern, { streams: output, count: output.length, upstreamUrl });
-      // Trigger prefetch of next episode in background
-      triggerEpisodePrefetch(configId, searchPattern, cfg, cfg.aioBase);
-    }
+    setCachedStreams(cacheNamespace, searchPattern, { streams: output, count: output.length, upstreamUrl });
+    // Trigger prefetch of next episode in background
+    triggerEpisodePrefetch(cacheNamespace, searchPattern, cfg, cfg.aioBase);
 
     console.log(`[${reqId}] Final response: ${output.length} streams`);
     sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
