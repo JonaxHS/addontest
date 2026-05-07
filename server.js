@@ -579,6 +579,8 @@ async function handleStream(req, res, pathname, config, configId) {
     let output = converted;
 
     if (cfg.useAioFiltering) {
+      setCachedStreams(cacheNamespace, searchPattern, { streams: output, count: output.length, upstreamUrl });
+      triggerEpisodePrefetch(cacheNamespace, searchPattern, cfg, cfg.aioBase);
       console.log(`[${reqId}] useAioFiltering=true, returning ${output.length} without further filtering`);
       sendJson(res, 200, { streams: output, count: output.length, upstreamUrl });
       return;
