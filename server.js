@@ -964,11 +964,7 @@ const server = createServer(async (req, res) => {
       const entry = configStore.get(configId);
 
       if (!entry) {
-        sendJson(res, 404, { 
-          error: "Configuration not found",
-          configId,
-          availableConfigs: Array.from(configStore.keys())
-        });
+        sendJson(res, 404, { error: "Configuration not found" });
         return;
       }
 
