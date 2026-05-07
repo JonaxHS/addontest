@@ -290,6 +290,38 @@ function getRequestBaseUrl(req) {
   const host = req.headers.host || 'localhost';
   return `${proto}://${host}`;
 }
+
+function getClientIp(req) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  const realIp = req.headers['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim()) {
+    return realIp.trim();
+  }
+
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function getRequestAuditInfo(req, pathname) {
+  return {
+    ip: getClientIp(req),
+    method: req.method || 'GET',
+    path: pathname || req.url || '/',
+    userAgent: req.headers['user-agent'] || 'unknown',
+    referer: req.headers.referer || req.headers.referrer || 'none'
+  };
+}
+
+function logRequestAudit(req, pathname, label = 'REQ') {
+  const audit = getRequestAuditInfo(req, pathname);
+  console.log(
+    `[${label}] ${audit.method} ${audit.path} ip=${audit.ip} ua="${audit.userAgent}" referer="${audit.referer}"`
+  );
+}
+
 function toHexInfoHash(candidate) {
   if (!candidate) return null;
   if (/^[A-Fa-f0-9]{40}$/.test(candidate)) {
@@ -498,10 +530,13 @@ async function handleStream(req, res, pathname, config, configId) {
     }
 
     const cacheNamespace = getCacheNamespace(configId, cfg);
+    const audit = getRequestAuditInfo(req, pathname);
 
     // Debug logging
     const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    console.log(`[${reqId}] Stream request: pattern=${searchPattern}, configId=${configId || 'NONE'}, cacheNs=${cacheNamespace}`);
+    console.log(
+      `[${reqId}] Stream request: pattern=${searchPattern}, configId=${configId || 'NONE'}, cacheNs=${cacheNamespace}, ip=${audit.ip}, ua="${audit.userAgent}", referer="${audit.referer}"`
+    );
 
     const cached = getCachedStreams(cacheNamespace, searchPattern);
     if (cached) {
@@ -677,6 +712,8 @@ const server = createServer(async (req, res) => {
   const pathname = url.pathname;
   const method = req.method;
 
+  logRequestAudit(req, pathname, 'HTTP');
+
   // Serve HTML config generator at root
   if (pathname === "/" && method === "GET") {
     const html = await getConfigHtml();
@@ -741,6 +778,7 @@ const server = createServer(async (req, res) => {
   // Test AIOStreams link endpoint
   if (pathname.startsWith("/api/test-aio/") && method === "GET") {
     const aioLink = decodeURIComponent(pathname.slice("/api/test-aio/".length));
+    console.log(`[TEST-AIO] ip=${getClientIp(req)} aioLink=${aioLink}`);
     try {
       const response = await fetch(aioLink, { headers: { accept: "application/json" } });
       if (!response.ok) {
@@ -760,6 +798,7 @@ const server = createServer(async (req, res) => {
   if (pathname === "/api/generate-config" && method === "POST") {
     let body = "";
     let bodySize = 0;
+    console.log(`[GEN-CONFIG] ip=${getClientIp(req)} content-length=${req.headers['content-length'] || 'unknown'}`);
     
     req.on("data", (chunk) => {
       bodySize += chunk.length;
